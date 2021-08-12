@@ -12,7 +12,7 @@ Usage
 -----
 
 ```bash
-tutor plugins enable tutor_recon`
+tutor plugins enable tutor_recon
 ```
 
 Development
