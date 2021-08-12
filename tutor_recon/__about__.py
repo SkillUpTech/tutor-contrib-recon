@@ -37,8 +37,9 @@ def project_version(toml_header="[tool.poetry]"):
             rf'^{toml_header}$[^^\[]*^version = "([^"]+)"$', toml_text, re.MULTILINE
         )
         if not match:
-            raise KeyError('No version specification was found in pyproject.toml.')
+            raise KeyError("No version specification was found in pyproject.toml.")
         ver = match.group(1)
     return ver
+
 
 __version__ = project_version()

@@ -4,9 +4,7 @@ import pkg_resources
 
 from .__about__ import __version__
 
-templates = pkg_resources.resource_filename(
-    "tutor_recon", "templates"
-)
+templates = pkg_resources.resource_filename("tutor_recon", "templates")
 
 config = {}
 
@@ -15,9 +13,7 @@ hooks = {}
 
 def patches():
     all_patches = {}
-    patches_dir = pkg_resources.resource_filename(
-        "tutor_recon", "patches"
-    )
+    patches_dir = pkg_resources.resource_filename("tutor_recon", "patches")
     for path in glob(os.path.join(patches_dir, "*")):
         with open(path) as patch_file:
             name = os.path.basename(path)
