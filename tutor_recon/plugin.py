@@ -1,4 +1,6 @@
+import json
 import os
+from tutor_recon.config.tutor import generate_scaffold
 from tutor_recon.util.cli import emit
 import pkg_resources
 from glob import glob
@@ -59,7 +61,9 @@ def init(context: cloup.Context, env_dir=None, reset_location=False):
         emit(f"Set the new environment overrides location to {recon_root}.")
     else:
         recon_root = overrides_path(tutor_root=tutor_root, env_dir=env_dir).resolve()
-    safe_scaffold_env(recon_root)
+    scaffold = generate_scaffold(tutor_root)
+    scaffold_formatted = json.dumps(scaffold, indent=4)
+    emit(scaffold_formatted)
     emit(
         f"You're all set! Your environment overrides can be configured at '{recon_root}'."
     )

@@ -2,15 +2,19 @@
 
 from json import JSONDecoder
 from pathlib import Path
-import typing
+from tutor_recon.util.string import brief
+from typing import TypeVar, Union
+from enum import Enum
 
 MARKER = '$'
 ESCAPED_MARKER = MARKER * 2
+UNSET_CONST_NAME = 'default'
 
-JSON_T = typing.TypeVar('JSON_T', str, int, float, bool, list, dict)
+JSON_T = TypeVar('JSON_T', str, int, float, bool, list, dict)
 """A type which can be represented in JSON."""
 
-def escape(value: JSON_T) -> JSON_T:
+
+def escape(value: JSON_T = None) -> JSON_T:
     """If the value is a string beginning with '$', replace it with '$$'.
     
     Does not recursively descend into child objects.
@@ -19,9 +23,12 @@ def escape(value: JSON_T) -> JSON_T:
         return '$' + value
     return value
 
-def format_unset(default: JSON_T = None) -> str:
-    """Return '$unset' with a parenthesized default value added after a space."""
-    return f'$unset ({default!r})'
+def format_unset(default: JSON_T, include_default = True, max_default_len=35) -> str:
+    """Return '$default' with a parenthesized default value optionally added after a space."""
+    if include_default:
+        default = brief(repr(default), max_len=max_default_len)
+        return f'${UNSET_CONST_NAME} ({default})'
+    return f'${UNSET_CONST_NAME}'
 
 class VJSONDecoder(JSONDecoder):
     """A custom JSON decoder which supports variable expansion along with references to objects in other files.
@@ -39,10 +46,10 @@ class VJSONDecoder(JSONDecoder):
 
     Two-character control sequences are checked before one-character control sequences.
 
-    A special built-in variable, `$unset`, when given as a value (optionally followed by any sequence of characters,
+    A special built-in variable, `$default`, when given as a value (optionally followed by any sequence of characters,
     which are ignored), signifies that a keypair should be entirely ignored by the decoder. 
     
-    Providing `$unset`, or either path sequence, as a key is an error.
+    Providing `$default`, or either path sequence, as a key is an error.
 
     The class can be instantiated with or without support for the relative path control sequence.
     """

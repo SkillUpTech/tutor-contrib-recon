@@ -18,13 +18,15 @@ def get_current(tutor_root: Path) -> dict:
     """Retrieve all Tutor configuration values which are currently set."""
     return tutor.config.load_current(tutor_root, defaults=get_defaults())
 
-def current_as_vjson(tutor_root: Path) -> dict:
-    """Generate a complete dictionary of config values, with set values set, and unset values marked as such."""
-    ret = {
-        k: format_unset(v) for k, v in get_defaults()
+def get_complete(tutor_root: Path) -> dict:
+    """Retrive the environment as it stands, including defaults and substitutions, from Tutor."""
+    return tutor.config.load(tutor_root)
+
+def generate_scaffold(tutor_root: Path) -> dict:
+    """Generate a complete dictionary of config values with no variables set.
+    
+    Keys have their existing values "hinted".
+    """
+    return {
+        k: format_unset(v) for k, v in get_complete(tutor_root).items()
     }
-    current_escaped = {
-        k: escape(v) for k, v in get_current(tutor_root)
-    }
-    ret.update(current_escaped)
-    return ret
