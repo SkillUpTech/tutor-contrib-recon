@@ -43,7 +43,7 @@ poetry shell
 
 ### Building the Project
 
-Do this each time you make a change to your plugin that you would like to use.
+Run this command to generate distributable `.whl` and `.tar.gz` archives in the `dist/` directory.
 
 ```bash
 poetry build
@@ -85,7 +85,9 @@ tutor plugins enable tutor_recon
 
 to enable it.
 
-# Copyright
+# About
+
+Created and maintained by Thomas Schweich <thomass@skillup.tech> for Skill-Up Technologies.
 
 Unless otherwise noted, all software in this repository is licensed under the AGPL. 
 A copy of the AGPL can be found in the `LICENSE` file at the root of this repository.
