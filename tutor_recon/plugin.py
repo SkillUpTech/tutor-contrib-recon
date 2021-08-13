@@ -55,9 +55,11 @@ def init(context: cloup.Context, env_dir=None, reset_location=False):
     tutor_root = Path(context.root)
     if reset_location:
         overrides_path(tutor_root=tutor_root).unlink(missing_ok=True)
-        new_path = overrides_path(tutor_root=tutor_root)
-        emit(f"Done. You can now configure your project at {new_path}.")
-    recon_root = overrides_path(tutor_root=tutor_root, env_dir=env_dir).resolve()
+        recon_root = overrides_path(tutor_root=tutor_root)
+        emit(f"Set the new environment overrides location to {recon_root}.")
+    else:
+        recon_root = overrides_path(tutor_root=tutor_root, env_dir=env_dir).resolve()
+    safe_scaffold_env(recon_root)
     emit(
         f"You're all set! Your environment overrides can be configured at '{recon_root}'."
     )
