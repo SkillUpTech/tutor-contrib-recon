@@ -34,5 +34,8 @@ def tutor_scaffold(tutor_root: Path) -> dict:
     """
     return {k: format_unset(v) for k, v in get_complete(tutor_root).items()}
 
+
 def update_config(tutor_root: Path, settings: dict) -> None:
-    tutor.config.save_config_file(tutor_root, tutor.config.merge(settings, get_complete()))
+    tutor.config.save_config_file(
+        tutor_root, tutor.config.merge(settings, get_complete())
+    )

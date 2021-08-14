@@ -1,7 +1,5 @@
-import json
 import os
-from tutor_recon.config.main import scaffold_all
-from tutor_recon.config.tutor import tutor_scaffold
+from tutor_recon.config.main import override_all, scaffold_all
 from tutor_recon.util.cli import emit
 import pkg_resources
 from glob import glob
@@ -72,4 +70,12 @@ def init(context: cloup.Context, env_dir=None, reset_location=False):
 @cloup.pass_obj
 def printroot(context: cloup.Context):
     tutor_root = Path(context.root)
-    click.echo(overrides_path(tutor_root=tutor_root).resolve())
+    click.echo(overrides_path(tutor_root).resolve())
+
+
+@recon.command(help="Apply all override settings to the rendered environment.")
+@cloup.pass_obj
+def save(context: cloup.Context):
+    tutor_root = Path(context.root)
+    recon_root = overrides_path(tutor_root).resolve()
+    override_all(tutor_root, recon_root)
