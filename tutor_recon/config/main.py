@@ -3,6 +3,7 @@
 import json
 from abc import ABC, abstractmethod
 from pathlib import Path
+from tutor_recon.util.misc import recursive_update, set_nested, walk_dict
 from tutor_recon.util.paths import overrides_path
 from typing import Optional
 
@@ -30,15 +31,29 @@ class OverrideConfig(ABC):
 
     @abstractmethod
     def load_from_env(self, tutor_root: Path) -> dict:
-        """Load this configuration's settings from the current Tutor environment."""
+        """Load this configuration's settings from the current Tutor environment.
 
-    @abstractmethod
-    def get_scaffold(self, tutor_root: Path) -> dict:
-        """Return a dict mapping all possible keys for this config to `'$default'`."""
+        Ideally all possible keys should be present along with their current or default values.
+        """
 
     @abstractmethod
     def replace(self, tutor_root: Path, override_settings: dict) -> None:
         """Update the environment with the given settings."""
+
+    def get_scaffold(self, tutor_root: Path) -> dict:
+        """Return a dict mapping (all) possible keys for this config to `'$default'`."""
+        env = self.load_from_env(tutor_root)
+        ret = dict()
+        for key_list, value in walk_dict(env):
+            set_nested(ret, key_list, format_unset(value))
+        return ret
+
+    def get_complete(self, tutor_root: Path, recon_root: Path) -> "list[dict]":
+        """Return the full scaffold of this Config with all overrides applied."""
+        scaffold = self.get_scaffold(tutor_root)
+        overrides = self.load_override_config(recon_root)
+        recursive_update(scaffold, overrides)
+        return scaffold
 
     def override(self, tutor_root: Path, recon_root: Path) -> None:
         """Apply the override settings to the environment."""
@@ -63,14 +78,13 @@ class OverrideConfig(ABC):
         """
         if settings is None:
             settings = dict()
-        scaffold = self.get_scaffold(tutor_root)
-        scaffold.update(self.load_override_config(recon_root))
-        scaffold.update(settings)
+        complete = self.get_complete(tutor_root, recon_root)
+        recursive_update(complete, settings)
         override_path = recon_root / self.recon_path
         override_dir = override_path.parent
         override_dir.mkdir(exist_ok=True, parents=True)
         with open(override_path, "w") as f:
-            json.dump(scaffold, f, indent=4)
+            json.dump(complete, f, indent=4)
 
 
 class TutorOverrideConfig(OverrideConfig):
@@ -116,6 +130,11 @@ def get_all_configs() -> "list[OverrideConfig]":
         JSONOverrideConfig(recon_path=v, env_path=k) for k, v in JSON_CONFIG_MAP.items()
     ]
     return [tutor_config] + json_configs
+
+
+def get_all_mappings(tutor_root: str, recon_root: str) -> "list[dict]":
+    """Get all configurations with overrides applied, mapped by their `env_path`."""
+    return {str(conf.env_path): conf.get_complete(tutor_root, recon_root) for conf in get_all_configs()}
 
 
 def scaffold_all(tutor_root: str, recon_root: str) -> None:
