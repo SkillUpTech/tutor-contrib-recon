@@ -1,12 +1,10 @@
 """A custom JSON decoder and associated utilities."""
 
-from json import JSONDecoder
+from json import JSONDecoder, JSONEncoder, JSONDecodeError
 import json
-from json.decoder import JSONDecodeError
-from json.encoder import JSONEncoder
 from pathlib import Path
-from tutor_recon.util.misc import brief
-from typing import Literal, MutableMapping, Union
+from tutor_recon.util.misc import WrappedDict, brief
+from typing import Any, Literal, Optional, Union
 
 MARKER = "$"
 ESCAPED_MARKER = MARKER * 2
@@ -43,10 +41,14 @@ def format_unset(default: JSON_T, include_default=True, max_default_len=35) -> s
         return f"${UNSET_CONST_NAME} ({default})"
     return f"${UNSET_CONST_NAME}"
 
-
-def raise_decode_error(msg: str) -> None:
-    raise JSONDecodeError(msg)
-
+class RemoteMapping(WrappedDict):
+    """A dict-like type which keeps track of a `Path` to which it should be serialized.
+    
+    The path can be relative or absolute--it just needs to be kept as one or the other.
+    """
+    def __init__(self, target: Path, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.target = target
 
 class VJSONDecoder(JSONDecoder):
     """A custom JSON decoder which supports variable expansion along with references to objects in other files.
@@ -81,7 +83,7 @@ class VJSONDecoder(JSONDecoder):
     The `object_hook` keyword cannot be set since it is used internally.
     """
 
-    def __init__(self, *args, location: Path = None, **kwargs) -> None:
+    def __init__(self, *args, location: Optional[Path] = None, **kwargs) -> None:
         super().__init__(*args, object_hook=self.object_hook, **kwargs)
         self.location = location
         self._csm = {
@@ -97,38 +99,41 @@ class VJSONDecoder(JSONDecoder):
         assert token.startswith(ESCAPED_MARKER)
         return token[1:]
 
-    def expand_absolute(self, value, key=NOT_SET) -> dict:
+    def expand_absolute(self, value: str, key=NOT_SET) -> RemoteMapping:
         """Load the absolute path given in `value`. The path cannot be in the key.
 
         It is an error to set `key`. The file pointed to at `value` is assumed to be a
         .v.json-formatted text file.
         """
         assert key is NOT_SET, "Absolute path references are not supported in keys."
-        with open(value, "r") as f:
-            return json.load(f, cls=VJSONDecoder)
+        path = Path(value[2:])
+        with open(path, "r") as f:
+            return RemoteMapping(path, json.load(f, cls=type(self)))
 
-    def expand_relative(self, path: Path, **kwargs) -> dict:
+    def expand_relative(self, value: str, key=NOT_SET) -> RemoteMapping:
         f"""Load the given relative `path`."""
+        assert key is NOT_SET, "Relative path references are not supported in keys."
         if not self.location:
             raise JSONDecodeError(
                 "This decoder does not support relative path references."
             )
-        return self.expand_relative_to(self.location, path, **kwargs)
+        return self.expand_relative_to(self.location, value, key=key)
 
     def expand_relative_to(
         self, location: Path, value: JSON_T, key: KEY_T = NOT_SET
-    ) -> dict:
+    ) -> RemoteMapping:
         """Load the path given in `value` relative to `location`. The path cannot be in the key.
 
         It is an error to set `key`. The file pointed to at `location / value` is assumed to be
         a .v.json-formatted text file.
         """
         assert key is NOT_SET, "Relative path references are not supported in keys."
-        with open(location / value, "r") as f:
-            return json.load(f, cls=VJSONDecoder)
+        path = Path(value[2:])
+        with open(location / path, "r") as f:
+            return RemoteMapping(path, json.load(f, cls=type(self)))
 
     def expand_escaped(self, value: JSON_T, key: KEY_T = NOT_SET) -> str:
-        """Remove the escape character from the `key` if set, or from the `value` not."""
+        """Remove the escape character from the `key` if set, or from the `value` if not."""
         if key is NOT_SET:
             return value[1:]
         return key[1:]
@@ -144,7 +149,7 @@ class VJSONDecoder(JSONDecoder):
         - If `key` is not set, expand the variable reference in in `value` and return the result
           of the expansion.
 
-        If key is not set and value is `$default`, return NOT_SET.
+        If key is not set and value starts with `$default`, return NOT_SET.
         """
         if key is NOT_SET:
             if value.startswith(f"{MARKER}{UNSET_CONST_NAME}"):
@@ -189,11 +194,10 @@ class VJSONDecoder(JSONDecoder):
         """
 
         class RelativeVJSONDecoder(cls):
-            f"""A '{cls.__name__}' which supports file references relative to '{location}'."""
+            f"""A `{cls.__name__}` which supports file references relative to '{location}'."""
 
             def __init__(self, *args, **kwargs):
-                super().__init__(*args, **kwargs)
-                self.location = location
+                super().__init__(*args, location=location, **kwargs)
 
         return RelativeVJSONDecoder
 
@@ -203,3 +207,39 @@ class VJSONEncoder(JSONEncoder):
     
     See `VJSONDecoder` for further information.
     """
+    def __init__(self, *args, location: Optional[Path] = None, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.location = location
+    
+    def default(self, o: Any) -> Any:
+        if not isinstance(o, RemoteMapping):
+            return super().default(o)
+        path = o.target
+        prefix = '$/'
+        complete_path = path
+        if not path.is_absolute():
+            if not self.location:
+                raise TypeError(f"This `{type(self).__name__}` cannot write to relative file locations.")
+            prefix = '$./'
+            complete_path = self.location / path
+        complete_path.parent.mkdir(exist_ok=True, parents=True)
+        with open(complete_path, "w") as f:
+            f.write(json.dump(o._dict, f, cls=type(self)))
+        return prefix + str(path)
+
+    @classmethod
+    def relative_encoder(cls: "type[VJSONEncoder]", location: Path) -> "type[VJSONEncoder]":
+        """Dynamically generate a VJSONEncoder `type` which can expand paths relative to `location`.
+
+        This is useful since the class can be provided as the `cls` argument to `json.dump()` and
+        `json.dumps()`. If VJSONEncoder is passed directly, relative file references will not work,
+        since instances are not provided with the path to the file being encoded by the `json` module.
+        """
+
+        class RelativeVJSONEncoder(cls):
+            f"""A `{cls.__name__}` which supports file references relative to '{location}'."""
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, location=location, **kwargs)
+
+        return RelativeVJSONEncoder

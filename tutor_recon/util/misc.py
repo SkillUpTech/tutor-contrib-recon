@@ -1,6 +1,6 @@
 """Miscellaneous utility functions."""
 
-from typing import Any, Iterator, Optional
+from typing import Any, Iterator, MutableMapping, Optional
 from collections.abc import Mapping, Sequence
 
 
@@ -55,3 +55,29 @@ def recursive_update(mapping: Mapping, other: Mapping) -> None:
     """
     for key_list, value in walk_dict(other):
         set_nested(mapping, key_list, value)
+
+class WrappedDict(MutableMapping):
+    """Dict-like object which thinly wraps an underlying dictionary.
+    
+    Does *not* satisfy `isinstance(WrappedDict, dict)` -- this is intentional.
+    It allows customization of serialization by `json.dump()` and `json.dumps()`,
+    since `json` calls a `default` function on unknown types.
+    """
+    def __init__(self, *args, **kwargs):
+        self._dict = dict()
+        self.update(dict(*args, **kwargs))
+
+    def __getitem__(self, key):
+        return self._dict[key]
+
+    def __setitem__(self, key, value):
+        self._dict[key] = value
+
+    def __delitem__(self, key):
+        del self._dict[key]
+
+    def __iter__(self):
+        return iter(self._dict)
+    
+    def __len__(self):
+        return len(self._dict)

@@ -6,7 +6,7 @@ from pathlib import Path
 import click
 import cloup
 
-from tutor_recon.config.main import get_all_mappings, override_all, scaffold_all
+from tutor_recon.config.main import get_all_mappings, main_config, override_all, scaffold_all
 from tutor_recon.util.cli import emit
 from tutor_recon.util.paths import overrides_path
 

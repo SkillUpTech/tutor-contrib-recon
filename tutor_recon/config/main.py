@@ -7,7 +7,7 @@ from tutor_recon.util.misc import recursive_update, set_nested, walk_dict
 from tutor_recon.util.paths import overrides_path
 from typing import Optional
 
-from tutor_recon.util.vjson import format_unset, VJSONDecoder
+from tutor_recon.util.vjson import RemoteMapping, VJSONEncoder, format_unset, VJSONDecoder
 from tutor_recon.config.tutor import update_config, get_complete
 
 
@@ -75,7 +75,7 @@ class OverrideConfig(ABC):
         if not override_path.exists():
             return dict()
         with open(override_path, "r") as f:
-            return json.load(f, cls=VJSONDecoder.relative_decoder(override_path))
+            return json.load(f, cls=VJSONDecoder.relative_decoder(override_path.parent))
 
     def save_override_config(
         self, tutor_root: Path, recon_root: Path, settings: Optional[dict] = None
@@ -93,7 +93,7 @@ class OverrideConfig(ABC):
         override_dir = override_path.parent
         override_dir.mkdir(exist_ok=True, parents=True)
         with open(override_path, "w") as f:
-            json.dump(complete, f, indent=4)
+            json.dump(complete, f, indent=4, cls=VJSONEncoder.relative_encoder(override_dir))
 
 
 class TutorOverrideConfig(OverrideConfig):
@@ -102,8 +102,8 @@ class TutorOverrideConfig(OverrideConfig):
 
     def update_env(self, tutor_root: Path, override_settings: dict) -> None:
         env = self.load_from_env(tutor_root)
-        env.update(override_settings)
-        update_config(tutor_root, settings=self.get_complete())
+        recursive_update(env, override_settings)
+        update_config(tutor_root, settings=env)
 
 
 class JSONOverrideConfig(OverrideConfig):
@@ -113,9 +113,23 @@ class JSONOverrideConfig(OverrideConfig):
 
     def update_env(self, tutor_root: Path, override_settings: dict) -> None:
         env = self.load_from_env(tutor_root)
-        env.update(override_settings)
+        recursive_update(env, override_settings)
         with open(tutor_root / self.env_path, "w") as f:
             json.dump(env, f)
+
+class MainConfig(OverrideConfig):
+    def __init__(self, recon_path: Path, configs: "dict[str, OverrideConfig]") -> None:
+        super().__init__(recon_path, None)
+        self._configs = configs
+
+    def load_from_env(self, tutor_root: Path) -> dict:
+        return {
+            config.env_path: RemoteMapping(config.load_from_env(tutor_root)) for config in self._configs.values()
+        }
+
+    def update_env(self, tutor_root: Path, override_settings: dict) -> None:
+        for k, v in self._configs.items():
+            v.update_env(tutor_root, override_settings.get(k, dict()))
 
 
 JSON_CONFIG_MAP = {
@@ -133,17 +147,26 @@ def get_all_configs() -> "list[OverrideConfig]":
     ]
     return [tutor_config] + json_configs
 
+def main_config() -> MainConfig:
+    config_map = {
+        "tutor_config.yml": TutorOverrideConfig(recon_path=Path("tutor_config.yml"), env_path=Path("config.yml"))
+    }
+    config_map.update({k: JSONOverrideConfig(recon_path=v, env_path=k) for k, v in JSON_CONFIG_MAP.items()})
+    return MainConfig("main.v.json", config_map)
 
 def get_all_mappings(tutor_root: str, recon_root: str) -> "list[dict]":
     """Get all configurations with overrides applied, mapped by their `env_path`."""
     return {str(conf.env_path): conf.get_complete(tutor_root, recon_root) for conf in get_all_configs()}
+    # return main_config().get_complete(tutor_root, recon_root)
 
 
 def scaffold_all(tutor_root: str, recon_root: str) -> None:
+    # main_config().save_override_config(tutor_root, recon_root)
     for conf in get_all_configs():
         conf.save_override_config(tutor_root, recon_root)
 
 
 def override_all(tutor_root: str, recon_root: str) -> None:
+    # main_config().override(tutor_root, recon_root)
     for conf in get_all_configs():
         conf.override(tutor_root, recon_root)
