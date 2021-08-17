@@ -4,6 +4,7 @@ from json import JSONDecoder, JSONEncoder, JSONDecodeError
 import json
 from pathlib import Path
 from tutor_recon.util.misc import WrappedDict, brief
+from collections import MutableMapping
 from typing import Any, Literal, Optional, Union
 
 MARKER = "$"
@@ -27,10 +28,12 @@ KEY_T = Union[str, NOT_SET_T]
 def escape(value: JSON_T = None) -> JSON_T:
     """If the value is a string beginning with '$', replace it with '$$'.
 
-    Does not recursively descend into child objects.
+    Recursively descends into child objects.
     """
     if isinstance(value, str) and value.startswith("$"):
         return "$" + value
+    if isinstance(value, MutableMapping):
+        return {k: escape(v) for k, v in value.items()}
     return value
 
 
@@ -73,6 +76,7 @@ class RemoteMapping(WrappedDict):
                 location
             ), f"Cannot write to relative path '{target}' without a location specified."
             target = location / target
+        target.parent.mkdir(exist_ok=True, parents=True)
         with open(target, "w") as f:
             json.dump(self._dict, f, cls=serializer, indent=4)
 
@@ -191,13 +195,15 @@ class VJSONDecoder(JSONDecoder):
         First expands the key, then the value.
         """
         k, v = pair
-        k2, v2 = k[:2], v[:2]
-        k1, v1 = k[:1], v[:1]
+        k2 = k[:2]
+        k1 = k[:1]
         if k2 in self._csm:
             k = self._csm[k2](v, key=k)
         elif k1 in self._csm:
             k = self._csm[k1](v, key=k)
         if isinstance(v, str):
+            v2 = v[:2]
+            v1 = v[:1]
             if v2 in self._csm:
                 v = self._csm[v2](v)
             elif v1 in self._csm:
