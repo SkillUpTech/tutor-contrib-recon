@@ -56,13 +56,15 @@ def recursive_update(mapping: Mapping, other: Mapping) -> None:
     for key_list, value in walk_dict(other):
         set_nested(mapping, key_list, value)
 
+
 class WrappedDict(MutableMapping):
     """Dict-like object which thinly wraps an underlying dictionary.
-    
+
     Does *not* satisfy `isinstance(WrappedDict, dict)` -- this is intentional.
     It allows customization of serialization by `json.dump()` and `json.dumps()`,
     since `json` calls a `default` function on unknown types.
     """
+
     def __init__(self, *args, **kwargs):
         self._dict = dict()
         self.update(dict(*args, **kwargs))
@@ -78,6 +80,6 @@ class WrappedDict(MutableMapping):
 
     def __iter__(self):
         return iter(self._dict)
-    
+
     def __len__(self):
         return len(self._dict)

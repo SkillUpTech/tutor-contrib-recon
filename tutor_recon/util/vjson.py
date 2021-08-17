@@ -41,14 +41,41 @@ def format_unset(default: JSON_T, include_default=True, max_default_len=35) -> s
         return f"${UNSET_CONST_NAME} ({default})"
     return f"${UNSET_CONST_NAME}"
 
+
 class RemoteMapping(WrappedDict):
     """A dict-like type which keeps track of a `Path` to which it should be serialized.
-    
+
     The path can be relative or absolute--it just needs to be kept as one or the other.
     """
+
     def __init__(self, target: Path, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.target = target
+
+    @property
+    def remote_reference(self) -> str:
+        if self.target.is_absolute():
+            return f"{MARKER}/{self.target}"
+        return f"{MARKER}./{self.target}"
+
+    def expand(self) -> dict:
+        return self._dict
+
+    def write(
+        self,
+        serializer: "type[JSONEncoder]" = JSONEncoder,
+        location: Optional[Path] = None,
+    ) -> None:
+        """Serialize the contents of this mapping to its target."""
+        target = self.target
+        if not target.is_absolute():
+            assert (
+                location
+            ), f"Cannot write to relative path '{target}' without a location specified."
+            target = location / target
+        with open(target, "w") as f:
+            json.dump(self._dict, f, cls=serializer, indent=4)
+
 
 class VJSONDecoder(JSONDecoder):
     """A custom JSON decoder which supports variable expansion along with references to objects in other files.
@@ -108,7 +135,7 @@ class VJSONDecoder(JSONDecoder):
         assert key is NOT_SET, "Absolute path references are not supported in keys."
         path = Path(value[2:])
         with open(path, "r") as f:
-            return RemoteMapping(path, json.load(f, cls=type(self)))
+            return RemoteMapping(path, **json.load(f, cls=type(self)))
 
     def expand_relative(self, value: str, key=NOT_SET) -> RemoteMapping:
         f"""Load the given relative `path`."""
@@ -130,7 +157,7 @@ class VJSONDecoder(JSONDecoder):
         assert key is NOT_SET, "Relative path references are not supported in keys."
         path = Path(value[2:])
         with open(location / path, "r") as f:
-            return RemoteMapping(path, json.load(f, cls=type(self)))
+            return RemoteMapping(path, **json.load(f, cls=type(self)))
 
     def expand_escaped(self, value: JSON_T, key: KEY_T = NOT_SET) -> str:
         """Remove the escape character from the `key` if set, or from the `value` if not."""
@@ -183,9 +210,10 @@ class VJSONDecoder(JSONDecoder):
         gen_expanded = (self.expand(pair) for pair in obj.items())
         return {k: v for k, v in gen_expanded if v is not NOT_SET}
 
-
     @classmethod
-    def relative_decoder(cls: "type[VJSONDecoder]", location: Path) -> "type[VJSONDecoder]":
+    def relative_decoder(
+        cls: "type[VJSONDecoder]", location: Path
+    ) -> "type[VJSONDecoder]":
         """Dynamically generate a VJSONDecoder `type` which can expand paths relative to `location`.
 
         This is useful since the class can be provided as the `cls` argument to `json.load()` and
@@ -204,31 +232,39 @@ class VJSONDecoder(JSONDecoder):
 
 class VJSONEncoder(JSONEncoder):
     """Serializer counterpart to `VJSONDecoder`.
-    
+
     See `VJSONDecoder` for further information.
     """
-    def __init__(self, *args, location: Optional[Path] = None, **kwargs) -> None:
+
+    def __init__(
+        self,
+        *args,
+        location: Optional[Path] = None,
+        write_remote_mappings: bool = False,
+        expand_remote_mappings: bool = False,
+        **kwargs,
+    ) -> None:
         super().__init__(*args, **kwargs)
         self.location = location
-    
+        self.write_remote_mappings = write_remote_mappings
+        self.expand_remote_mappings = expand_remote_mappings
+
     def default(self, o: Any) -> Any:
-        if not isinstance(o, RemoteMapping):
-            return super().default(o)
-        path = o.target
-        prefix = '$/'
-        complete_path = path
-        if not path.is_absolute():
-            if not self.location:
-                raise TypeError(f"This `{type(self).__name__}` cannot write to relative file locations.")
-            prefix = '$./'
-            complete_path = self.location / path
-        complete_path.parent.mkdir(exist_ok=True, parents=True)
-        with open(complete_path, "w") as f:
-            f.write(json.dump(o._dict, f, cls=type(self)))
-        return prefix + str(path)
+        if isinstance(o, RemoteMapping):
+            if self.write_remote_mappings:
+                o.write(type(self), self.location)
+            if self.expand_remote_mappings:
+                return o.expand()
+            return o.remote_reference
+        return super().default(o)
 
     @classmethod
-    def relative_encoder(cls: "type[VJSONEncoder]", location: Path) -> "type[VJSONEncoder]":
+    def make_encoder(
+        cls: "type[VJSONEncoder]",
+        location: Path,
+        write_remote_mappings: bool = False,
+        expand_remote_mappings: bool = False,
+    ) -> "type[VJSONEncoder]":
         """Dynamically generate a VJSONEncoder `type` which can expand paths relative to `location`.
 
         This is useful since the class can be provided as the `cls` argument to `json.dump()` and
@@ -240,6 +276,12 @@ class VJSONEncoder(JSONEncoder):
             f"""A `{cls.__name__}` which supports file references relative to '{location}'."""
 
             def __init__(self, *args, **kwargs):
-                super().__init__(*args, location=location, **kwargs)
+                super().__init__(
+                    *args,
+                    location=location,
+                    write_remote_mappings=write_remote_mappings,
+                    expand_remote_mappings=expand_remote_mappings,
+                    **kwargs,
+                )
 
         return RelativeVJSONEncoder

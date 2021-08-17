@@ -2,11 +2,17 @@
 
 import json
 from pathlib import Path
+from tutor_recon.util.vjson import VJSONEncoder
 
 import click
 import cloup
 
-from tutor_recon.config.main import get_all_mappings, main_config, override_all, scaffold_all
+from tutor_recon.config.main import (
+    get_all_mappings,
+    main_config,
+    override_all,
+    scaffold_all,
+)
 from tutor_recon.util.cli import emit
 from tutor_recon.util.paths import overrides_path
 
@@ -60,9 +66,23 @@ def save(context: cloup.Context):
     override_all(tutor_root, recon_root)
 
 
-@recon.command(help="Echo all settings, with overrides applied, over stdout in JSON format.")
+@recon.command(
+    help="Echo all settings, with overrides applied, over stdout in JSON format."
+)
+@cloup.option(
+    "--all",
+    default=False,
+    help="Show the complete mapping of all overrides for all files.",
+    is_flag=True,
+)
 @cloup.pass_obj
-def list(context: cloup.Context):
+def list(context: cloup.Context, all: bool):
     tutor_root = Path(context.root)
     recon_root = overrides_path(tutor_root).resolve()
-    click.echo(json.dumps(get_all_mappings(tutor_root, recon_root), indent=4))
+    print(
+        json.dumps(
+            get_all_mappings(tutor_root, recon_root),
+            indent=4,
+            cls=VJSONEncoder.make_encoder(recon_root, expand_remote_mappings=all),
+        )
+    )
