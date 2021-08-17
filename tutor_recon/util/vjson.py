@@ -3,9 +3,10 @@
 from json import JSONDecoder
 import json
 from json.decoder import JSONDecodeError
+from json.encoder import JSONEncoder
 from pathlib import Path
 from tutor_recon.util.misc import brief
-from typing import Literal, Union
+from typing import Literal, MutableMapping, Union
 
 MARKER = "$"
 ESCAPED_MARKER = MARKER * 2
@@ -102,7 +103,7 @@ class VJSONDecoder(JSONDecoder):
         It is an error to set `key`. The file pointed to at `value` is assumed to be a
         .v.json-formatted text file.
         """
-        assert key is NOT_SET
+        assert key is NOT_SET, "Absolute path references are not supported in keys."
         with open(value, "r") as f:
             return json.load(f, cls=VJSONDecoder)
 
@@ -122,7 +123,7 @@ class VJSONDecoder(JSONDecoder):
         It is an error to set `key`. The file pointed to at `location / value` is assumed to be
         a .v.json-formatted text file.
         """
-        assert key is NOT_SET
+        assert key is NOT_SET, "Relative path references are not supported in keys."
         with open(location / value, "r") as f:
             return json.load(f, cls=VJSONDecoder)
 
@@ -178,19 +179,27 @@ class VJSONDecoder(JSONDecoder):
         return {k: v for k, v in gen_expanded if v is not NOT_SET}
 
 
-def relative_decoder(location: Path) -> "type[VJSONDecoder]":
-    """Dynamically generate a VJSONDecoder `type` which can expand paths relative to `location`.
+    @classmethod
+    def relative_decoder(cls: "type[VJSONDecoder]", location: Path) -> "type[VJSONDecoder]":
+        """Dynamically generate a VJSONDecoder `type` which can expand paths relative to `location`.
 
-    This is useful since the class can be provided as the `cls` argument to `json.load()` and
-    `json.loads()`. If VJSONDecoder is passed directly, relative file references will not work,
-    since instances are not provided with the path to the file being decoded by the `json` module.
+        This is useful since the class can be provided as the `cls` argument to `json.load()` and
+        `json.loads()`. If VJSONDecoder is passed directly, relative file references will not work,
+        since instances are not provided with the path to the file being decoded by the `json` module.
+        """
+
+        class RelativeVJSONDecoder(cls):
+            f"""A '{cls.__name__}' which supports file references relative to '{location}'."""
+
+            def __init__(self, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                self.location = location
+
+        return RelativeVJSONDecoder
+
+
+class VJSONEncoder(JSONEncoder):
+    """Serializer counterpart to `VJSONDecoder`.
+    
+    See `VJSONDecoder` for further information.
     """
-
-    class RelativeVJSONDecoder(VJSONDecoder):
-        f"""A VJSONDecoder which supports file references relative to '{location}'."""
-
-        def __init__(self, *args, **kwargs):
-            super().__init__(*args, **kwargs)
-            self.location = location
-
-    return RelativeVJSONDecoder

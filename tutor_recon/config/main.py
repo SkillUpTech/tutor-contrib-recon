@@ -7,8 +7,8 @@ from tutor_recon.util.misc import recursive_update, set_nested, walk_dict
 from tutor_recon.util.paths import overrides_path
 from typing import Optional
 
-from tutor_recon.util.vjson import format_unset, relative_decoder
-from tutor_recon.config.tutor import update_config, get_complete, get_current
+from tutor_recon.util.vjson import format_unset, VJSONDecoder
+from tutor_recon.config.tutor import update_config, get_complete
 
 
 class OverrideConfig(ABC):
@@ -37,7 +37,7 @@ class OverrideConfig(ABC):
         """
 
     @abstractmethod
-    def replace(self, tutor_root: Path, override_settings: dict) -> None:
+    def update_env(self, tutor_root: Path, override_settings: dict) -> None:
         """Update the environment with the given settings."""
 
     def get_scaffold(self, tutor_root: Path) -> dict:
@@ -55,9 +55,19 @@ class OverrideConfig(ABC):
         recursive_update(scaffold, overrides)
         return scaffold
 
+    def with_new_overrides(self, overrides: dict, tutor_root: Path, recon_root: Path) -> dict:
+        """Get the complete configuration dict with the given new overrides also applied."""
+        complete = self.get_complete(tutor_root, recon_root)
+        recursive_update(complete, overrides)
+        return complete
+
     def override(self, tutor_root: Path, recon_root: Path) -> None:
-        """Apply the override settings to the environment."""
-        self.replace(tutor_root, self.load_override_config(recon_root))
+        """Apply the override settings to the environment.
+        
+        To also apply new overrides, first call `write_override_file` with the new settings,
+        the call this method.
+        """
+        self.update_env(tutor_root, self.load_override_config(recon_root))
 
     def load_override_config(self, recon_root: Path) -> dict:
         """Load the explicitly set override values from the relevant recon override file."""
@@ -65,9 +75,9 @@ class OverrideConfig(ABC):
         if not override_path.exists():
             return dict()
         with open(override_path, "r") as f:
-            return json.load(f, cls=relative_decoder(override_path))
+            return json.load(f, cls=VJSONDecoder.relative_decoder(override_path))
 
-    def write_override_file(
+    def save_override_config(
         self, tutor_root: Path, recon_root: Path, settings: Optional[dict] = None
     ) -> None:
         """Write the .v.json file of this config's scaffold updated with the values in `settings`.
@@ -78,8 +88,7 @@ class OverrideConfig(ABC):
         """
         if settings is None:
             settings = dict()
-        complete = self.get_complete(tutor_root, recon_root)
-        recursive_update(complete, settings)
+        complete = self.with_new_overrides(settings, tutor_root, recon_root)
         override_path = recon_root / self.recon_path
         override_dir = override_path.parent
         override_dir.mkdir(exist_ok=True, parents=True)
@@ -91,13 +100,10 @@ class TutorOverrideConfig(OverrideConfig):
     def load_from_env(self, tutor_root: Path) -> dict:
         return get_complete(tutor_root).copy()
 
-    def get_scaffold(self, tutor_root: Path) -> dict:
-        return {k: format_unset(v) for k, v in get_current(tutor_root).items()}
-
-    def replace(self, tutor_root: Path, override_settings: dict) -> None:
+    def update_env(self, tutor_root: Path, override_settings: dict) -> None:
         env = self.load_from_env(tutor_root)
         env.update(override_settings)
-        return update_config(tutor_root, settings=env)
+        update_config(tutor_root, settings=self.get_complete())
 
 
 class JSONOverrideConfig(OverrideConfig):
@@ -105,11 +111,7 @@ class JSONOverrideConfig(OverrideConfig):
         with open(tutor_root / self.env_path, "r") as f:
             return json.load(f)
 
-    def get_scaffold(self, tutor_root: Path) -> dict:
-        env = self.load_from_env(tutor_root)
-        return {k: format_unset(v) for k, v in env.items()}
-
-    def replace(self, tutor_root: Path, override_settings: dict) -> None:
+    def update_env(self, tutor_root: Path, override_settings: dict) -> None:
         env = self.load_from_env(tutor_root)
         env.update(override_settings)
         with open(tutor_root / self.env_path, "w") as f:
@@ -139,7 +141,7 @@ def get_all_mappings(tutor_root: str, recon_root: str) -> "list[dict]":
 
 def scaffold_all(tutor_root: str, recon_root: str) -> None:
     for conf in get_all_configs():
-        conf.write_override_file(tutor_root, recon_root)
+        conf.save_override_config(tutor_root, recon_root)
 
 
 def override_all(tutor_root: str, recon_root: str) -> None:
