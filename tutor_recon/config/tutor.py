@@ -2,11 +2,11 @@
 
 from pathlib import Path
 
-import tutor
-from tutor.config import load_no_check, save_config_file, merge 
+from tutor.config import load_no_check, save_config_file, merge
 from tutor.config import load_all as tutor_load_all
 
 from tutor_recon.util.vjson import format_unset
+
 
 def load_all(tutor_root: Path) -> dict:
     """Retrive a tuple of (defaults, current_settings) from tutor."""
@@ -46,6 +46,4 @@ def tutor_scaffold(tutor_root: Path) -> dict:
 def update_config(tutor_root: Path, settings: dict) -> None:
     current = get_current(tutor_root)
     merge(settings, current)
-    save_config_file(
-        tutor_root, current
-    )
+    save_config_file(tutor_root, current)

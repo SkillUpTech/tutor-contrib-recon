@@ -8,22 +8,28 @@ from collections import MutableMapping
 from typing import Any, Literal, Optional, Union
 
 MARKER = "$"
-ESCAPED_MARKER = MARKER * 2
-UNSET_CONST_NAME = "default"
 
 JSON_T = Union[str, int, float, bool, list, dict]
 """A type which can be represented in JSON."""
 
-NOT_SET = object()
+NOTHING = object()
 """
-Indicates that a value is not set. 
-Used instead of `None` since `None` is a valid JSON value (corresponding to null).
+Used in place of `None` in this module to indicate a parameter without a value,
+since `None` maps to `null`, a valid JSON primitive.
 """
 
-NOT_SET_T = Literal[NOT_SET]
+IGNORE = object()
+"""
+When produced as a value, indicates that the entire keypair should be ignored.
+"""
 
-KEY_T = Union[str, NOT_SET_T]
+NOTHING_T = Literal[NOTHING]
 
+IGNORE_T = Literal[IGNORE]
+
+KEY_T = Union[str, NOTHING_T]
+
+POSSIBLE_JSON_T = Union[JSON_T, IGNORE_T]
 
 def escape(value: JSON_T = None) -> JSON_T:
     """If the value is a string beginning with '$', replace it with '$$'.
@@ -37,12 +43,12 @@ def escape(value: JSON_T = None) -> JSON_T:
     return value
 
 
-def format_unset(default: JSON_T, include_default=True, max_default_len=35) -> str:
-    """Return '$default' with a parenthesized default value optionally added after a space."""
-    if include_default:
+def format_unset(default: JSON_T = NOTHING, max_default_len=35) -> str:
+    """Return '$-', optionally with a parenthesized default value added after a space."""
+    if default is not NOTHING:
         default = brief(repr(default), max_len=max_default_len)
-        return f"${UNSET_CONST_NAME} ({default})"
-    return f"${UNSET_CONST_NAME}"
+        return f"$- ({default})"
+    return f"$-"
 
 
 class RemoteMapping(WrappedDict):
@@ -84,18 +90,15 @@ class RemoteMapping(WrappedDict):
 class VJSONDecoder(JSONDecoder):
     """A custom JSON decoder which supports variable expansion along with references to objects in other files.
 
-    Control sequences must occur at the beginning of an encoded string (key or value),
+    Control sequences are two-character sequences which must occur at the beginning of an encoded string,
         and are defined as follows:
 
-    `$$`: A single `$` character.
+    `$$`: A single `$` character. Valid as either a key or value.
     `$.`: Denotes the beginning of a relative path to anothor .json or .v.json spec to be substituted in its place.
-          Always evaluates to an object.
-    `$/`: Similar to above, but with an absolute path.
-
-    A special built-in variable, `$default`, when given as a value (optionally followed by any sequence of characters,
-    which are ignored), signifies that a keypair should be entirely ignored by the decoder.
-
-    Providing `$default`, or either path sequence, as a key is an error.
+          Always evaluates to an object. Valid only as a value.
+    `$/`: Similar to above, but with an absolute path. Valid only as a value.
+    `$-`: When given as a value, optionally followed by any sequence of characters (which is ignored), signifies that
+          a keypair should be entirely ignored by the decoder.
 
     The class can be instantiated with or without support for the relative path control sequence.
 
@@ -112,31 +115,42 @@ class VJSONDecoder(JSONDecoder):
         super().__init__(*args, object_hook=self.object_hook, **kwargs)
         self.location = location
         self._csm = {
-            ESCAPED_MARKER: lambda token, **_: token[1:],
+            MARKER * 2: self.expand_escaped,
             f"{MARKER}.": self.expand_relative,
             f"{MARKER}/": self.expand_absolute,
+            f"{MARKER}-": self.expand_default,
         }  # Stands for "control sequence mapping".
 
-    def expand_escaped(self, value: JSON_T, key=NOT_SET) -> str:
+    def object_hook(self, obj: dict) -> dict:
+        gen_expanded = (self.expand(pair) for pair in obj.items())
+        return {k: v for k, v in gen_expanded if v is not NOTHING}
+
+    def expand_default(self, value: JSON_T, key: KEY_T = NOTHING) -> IGNORE_T:
+        """Return `IGNORE`."""
+        assert key is NOTHING, "'$-' cannot be expanded in a key."
+        assert value.startswith(f"{MARKER}-")
+        return IGNORE
+
+    def expand_escaped(self, value: JSON_T, key: KEY_T = NOTHING) -> str:
         """Expand an escaped string."""
-        token = value if key is NOT_SET else key
-        assert token.startswith(ESCAPED_MARKER)
+        token = value if key is NOTHING else key
+        assert token.startswith(MARKER * 2)
         return token[1:]
 
-    def expand_absolute(self, value: str, key=NOT_SET) -> RemoteMapping:
+    def expand_absolute(self, value: str, key: KEY_T = NOTHING) -> RemoteMapping:
         """Load the absolute path given in `value`. The path cannot be in the key.
 
         It is an error to set `key`. The file pointed to at `value` is assumed to be a
         .v.json-formatted text file.
         """
-        assert key is NOT_SET, "Absolute path references are not supported in keys."
+        assert key is NOTHING, "Absolute path references are not supported in keys."
         path = Path(value[2:])
         with open(path, "r") as f:
             return RemoteMapping(path, **json.load(f, cls=type(self)))
 
-    def expand_relative(self, value: str, key=NOT_SET) -> RemoteMapping:
+    def expand_relative(self, value: str, key: KEY_T = NOTHING) -> RemoteMapping:
         f"""Load the given relative `path`."""
-        assert key is NOT_SET, "Relative path references are not supported in keys."
+        assert key is NOTHING, "Relative path references are not supported in keys."
         if not self.location:
             raise JSONDecodeError(
                 "This decoder does not support relative path references."
@@ -144,23 +158,17 @@ class VJSONDecoder(JSONDecoder):
         return self.expand_relative_to(self.location, value, key=key)
 
     def expand_relative_to(
-        self, location: Path, value: JSON_T, key: KEY_T = NOT_SET
+        self, location: Path, value: JSON_T, key: KEY_T = NOTHING
     ) -> RemoteMapping:
         """Load the path given in `value` relative to `location`. The path cannot be in the key.
 
         It is an error to set `key`. The file pointed to at `location / value` is assumed to be
         a .v.json-formatted text file.
         """
-        assert key is NOT_SET, "Relative path references are not supported in keys."
+        assert key is NOTHING, "Relative path references are not supported in keys."
         path = Path(value[2:])
         with open(location / path, "r") as f:
             return RemoteMapping(path, **json.load(f, cls=type(self)))
-
-    def expand_escaped(self, value: JSON_T, key: KEY_T = NOT_SET) -> str:
-        """Remove the escape character from the `key` if set, or from the `value` if not."""
-        if key is NOT_SET:
-            return value[1:]
-        return key[1:]
 
     def expand(self, pair: "tuple[str, JSON_T]") -> "tuple[str, JSON_T]":
         """Expand the (key, value) pair as appropriate.
@@ -178,10 +186,6 @@ class VJSONDecoder(JSONDecoder):
         elif isinstance(v, dict):
             v = self.object_hook(v)
         return k, v
-
-    def object_hook(self, obj: dict) -> dict:
-        gen_expanded = (self.expand(pair) for pair in obj.items())
-        return {k: v for k, v in gen_expanded if v is not NOT_SET}
 
     @classmethod
     def relative_decoder(
