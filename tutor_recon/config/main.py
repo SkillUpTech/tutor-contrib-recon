@@ -15,18 +15,24 @@ from tutor_recon.config.override import (
     TutorOverrideConfig,
 )
 
+JSON_CONFIG_MAP = {
+    "env/apps/openedx/config/cms.env.json": "openedx/cms.env.v.json",
+    "env/apps/openedx/config/lms.env.json": "openedx/lms.env.v.json",
+}
+
 
 class MainConfig:
     """Container object for `OverrideConfig` instances."""
+
     def __init__(self, configs: "dict[str, OverrideConfig]") -> None:
         self._configs = configs
 
     def load_overrides(self, tutor_root: Path, recon_root: Path) -> dict:
         return {
-            str(path): RemoteMapping(
+            str(name): RemoteMapping(
                 config.recon_path, **config.get_complete(tutor_root, recon_root)
             )
-            for path, config in self._configs.items()
+            for name, config in self._configs.items()
         }
 
     def save_overrides(
@@ -39,6 +45,7 @@ class MainConfig:
         env = self.load_overrides(tutor_root, recon_root)
         recursive_update(env, override_settings)
         main_path = recon_root / "main.v.json"
+        recon_root.mkdir(exist_ok=True, parents=True)
         with open(main_path, "w") as f:
             json.dump(
                 env,
@@ -50,12 +57,6 @@ class MainConfig:
     def apply_overrides(self, tutor_root: Path, recon_root: Path) -> None:
         for config in self._configs.values():
             config.override(tutor_root, recon_root)
-
-
-JSON_CONFIG_MAP = {
-    "env/apps/openedx/config/cms.env.json": "openedx/cms.env.v.json",
-    "env/apps/openedx/config/lms.env.json": "openedx/lms.env.v.json",
-}
 
 
 def get_all_configs() -> "list[OverrideConfig]":
@@ -73,7 +74,7 @@ def main_config() -> MainConfig:
     # The below will ultimately just be defaults.
     config_map = {
         "config.yml": TutorOverrideConfig(
-            recon_path=Path("tutor_config.yml"), env_path=Path("config.yml")
+            recon_path=Path("tutor_config.v.json"), env_path=Path("config.yml")
         )
     }
     config_map.update(
@@ -87,12 +88,15 @@ def main_config() -> MainConfig:
 
 def get_all_mappings(tutor_root: str, recon_root: str) -> "list[dict]":
     """Get all configurations with overrides applied, mapped by their `env_path`."""
+    tutor_root, recon_root = map(Path, (tutor_root, recon_root))
     return main_config().load_overrides(tutor_root, recon_root)
 
 
 def scaffold_all(tutor_root: str, recon_root: str) -> None:
+    tutor_root, recon_root = map(Path, (tutor_root, recon_root))
     main_config().save_overrides(tutor_root, recon_root)
 
 
 def override_all(tutor_root: str, recon_root: str) -> None:
+    tutor_root, recon_root = map(Path, (tutor_root, recon_root))
     main_config().apply_overrides(tutor_root, recon_root)

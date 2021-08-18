@@ -9,12 +9,12 @@ import cloup
 
 from tutor_recon.config.main import (
     get_all_mappings,
-    main_config,
     override_all,
     scaffold_all,
 )
 from tutor_recon.util.cli import emit
-from tutor_recon.util.paths import overrides_path
+from tutor_recon.util.paths import overrides_path, root_dirs
+from tutor_recon.commands.tutor import tutor_config_save
 
 
 @cloup.group(
@@ -36,9 +36,9 @@ def recon():
     help="Reset the environment overrides directory location to default (has no effect if the directory is already in the default location).",
     is_flag=True,
 )
-@cloup.pass_obj
+@cloup.pass_context
 def init(context: cloup.Context, env_dir=None, reset_location=False):
-    tutor_root = Path(context.root)
+    tutor_root = Path(context.obj.root)
     if reset_location:
         overrides_path(tutor_root=tutor_root).unlink(missing_ok=True)
         recon_root = overrides_path(tutor_root=tutor_root)
@@ -52,17 +52,21 @@ def init(context: cloup.Context, env_dir=None, reset_location=False):
 
 
 @recon.command(help="Echo the location of the config overrides directory over stdout.")
-@cloup.pass_obj
+@cloup.pass_context
 def printroot(context: cloup.Context):
-    tutor_root = Path(context.root)
-    click.echo(overrides_path(tutor_root).resolve())
+    _, recon_root = root_dirs(context)
+    click.echo(recon_root.resolve())
 
 
 @recon.command(help="Apply all override settings to the rendered environment.")
-@cloup.pass_obj
-def save(context: cloup.Context):
-    tutor_root = Path(context.root)
-    recon_root = overrides_path(tutor_root).resolve()
+@cloup.option("--tutor/--no-tutor", is_flag=True, default=True)
+@cloup.pass_context
+def save(context: cloup.Context, tutor):
+    tutor_root, recon_root = root_dirs(context)
+    if tutor:
+        emit("Running 'tutor config save'.")
+        context.invoke(tutor_config_save)
+    emit("Applying overrides.")
     override_all(tutor_root, recon_root)
 
 
@@ -75,10 +79,9 @@ def save(context: cloup.Context):
     help="Show the complete mapping of all overrides for all files.",
     is_flag=True,
 )
-@cloup.pass_obj
+@cloup.pass_context
 def list(context: cloup.Context, all: bool):
-    tutor_root = Path(context.root)
-    recon_root = overrides_path(tutor_root).resolve()
+    tutor_root, recon_root = root_dirs(context)
     print(
         json.dumps(
             get_all_mappings(tutor_root, recon_root),

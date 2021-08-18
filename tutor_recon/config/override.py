@@ -115,9 +115,7 @@ class TutorOverrideConfig(OverrideConfig):
         return get_complete(tutor_root).copy()
 
     def update_env(self, tutor_root: Path, override_settings: dict) -> None:
-        env = self.load_from_env(tutor_root)
-        recursive_update(env, override_settings)
-        update_config(tutor_root, settings=env)
+        update_config(tutor_root, settings=override_settings)
 
 
 class JSONOverrideConfig(OverrideConfig):

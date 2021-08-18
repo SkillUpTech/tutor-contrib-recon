@@ -3,13 +3,20 @@
 from pathlib import Path
 
 import tutor
+from tutor.config import load_no_check, save_config_file, merge 
+from tutor.config import load_all as tutor_load_all
 
-from tutor_recon.util.vjson import escape, format_unset
+from tutor_recon.util.vjson import format_unset
+
+def load_all(tutor_root: Path) -> dict:
+    """Retrive a tuple of (defaults, current_settings) from tutor."""
+    return tutor_load_all(tutor_root.resolve())
 
 
-def get_defaults() -> dict:
+def get_defaults(tutor_root: Path) -> dict:
     """Retrieve the default tutor configuration settings, unexpanded."""
-    return tutor.config.load_defaults()
+    _, defaults = load_all(tutor_root)
+    return defaults
 
 
 def get_possible_keys() -> "list[str]":
@@ -19,12 +26,13 @@ def get_possible_keys() -> "list[str]":
 
 def get_current(tutor_root: Path) -> dict:
     """Retrieve all Tutor configuration values which are currently set."""
-    return tutor.config.load_current(tutor_root, defaults=get_defaults())
+    current, _ = load_all(tutor_root)
+    return current
 
 
 def get_complete(tutor_root: Path) -> dict:
     """Retrive the environment as it stands, including defaults and substitutions, from Tutor."""
-    return tutor.config.load(tutor_root)
+    return load_no_check(tutor_root)
 
 
 def tutor_scaffold(tutor_root: Path) -> dict:
@@ -36,6 +44,8 @@ def tutor_scaffold(tutor_root: Path) -> dict:
 
 
 def update_config(tutor_root: Path, settings: dict) -> None:
-    tutor.config.save_config_file(
-        tutor_root, tutor.config.merge(settings, get_complete())
+    current = get_current(tutor_root)
+    merge(settings, current)
+    save_config_file(
+        tutor_root, current
     )

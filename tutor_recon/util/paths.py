@@ -1,9 +1,10 @@
 """Path-related utilities."""
 
 from pathlib import Path
-from typing import Optional, Union
+from typing import Optional
 
 import click
+import cloup
 
 
 def set_overrides_path(tutor_root: Path, new_path: Path) -> Path:
@@ -36,3 +37,8 @@ def overrides_path(tutor_root: Path, env_dir: Optional[Path] = None) -> Path:
             custom_path = f.read()
         return Path(custom_path)
     return set_overrides_path(tutor_root, tutor_root / "env_overrides")
+
+
+def root_dirs(context: cloup.Context) -> "tuple[Path, Path]":
+    """Return (tutor_root, recon_root) as determined using the given `Context`."""
+    return Path(context.obj.root), overrides_path(context.obj.root)

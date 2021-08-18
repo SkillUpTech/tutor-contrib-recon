@@ -3,7 +3,7 @@
 from typing import Any, IO, Optional
 import click
 
-PLUGIN_STYLED = click.style("recon", fg="blue")
+PLUGIN_STYLED = click.style("recon", fg="magenta")
 PLUGIN_TAG = f"[{PLUGIN_STYLED}]"
 
 
