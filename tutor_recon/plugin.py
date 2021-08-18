@@ -1,8 +1,9 @@
-from glob import glob
 import os
 import pkg_resources
+from glob import glob
 
-from .__about__ import __version__
+from tutor_recon.__about__ import __version__
+from tutor_recon.commands.recon import recon
 
 templates = pkg_resources.resource_filename("tutor_recon", "templates")
 
@@ -20,3 +21,6 @@ def patches():
             content = patch_file.read()
             all_patches[name] = content
     return all_patches
+
+
+command = recon
