@@ -18,9 +18,11 @@ from tutor_recon.commands.tutor import tutor_config_save
 
 CONFIG_SAVE_STYLED = click.style("tutor config save", fg="blue")
 
+
 def run_tutor_config_save(context: cloup.Context) -> None:
     emit(f"Running '{CONFIG_SAVE_STYLED}'.")
     context.invoke(tutor_config_save)
+
 
 @cloup.group(
     help="Allows overriding and rendering settings, files, and templates (in their entirety) from a central location."
@@ -41,7 +43,12 @@ def recon():
     help="Reset the environment overrides directory location to default (has no effect if the directory is already in the default location).",
     is_flag=True,
 )
-@cloup.option("--tutor/--no-tutor", is_flag=True, default=True, help="Run/don't run 'tutor config save' prior to applying overrides.")
+@cloup.option(
+    "--tutor/--no-tutor",
+    is_flag=True,
+    default=True,
+    help="Run/don't run 'tutor config save' prior to applying overrides.",
+)
 @cloup.pass_context
 def init(context: cloup.Context, env_dir, reset_location, tutor):
     tutor_root = Path(context.obj.root)
@@ -67,7 +74,12 @@ def printroot(context: cloup.Context):
 
 
 @recon.command(help="Apply all override settings to the rendered environment.")
-@cloup.option("--tutor/--no-tutor", is_flag=True, default=True, help="Run/don't run 'tutor config save' prior to applying overrides.")
+@cloup.option(
+    "--tutor/--no-tutor",
+    is_flag=True,
+    default=True,
+    help="Run/don't run 'tutor config save' prior to applying overrides.",
+)
 @cloup.pass_context
 def save(context: cloup.Context, tutor):
     tutor_root, recon_root = root_dirs(context)

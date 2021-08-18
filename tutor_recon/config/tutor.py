@@ -44,6 +44,7 @@ def tutor_scaffold(tutor_root: Path) -> dict:
 
 
 def update_config(tutor_root: Path, settings: dict) -> None:
+    """Update the Tutor environment with the given new settings."""
     current = get_current(tutor_root)
     merge(settings, current)
     save_config_file(tutor_root, current)

@@ -1,11 +1,12 @@
 """A custom JSON decoder and associated utilities."""
 
-from json import JSONDecoder, JSONEncoder, JSONDecodeError
 import json
-from pathlib import Path
-from tutor_recon.util.misc import WrappedDict, brief
+from json import JSONDecoder, JSONEncoder, JSONDecodeError
 from collections import MutableMapping
 from typing import Any, Literal, Optional, Union
+from pathlib import Path
+
+from tutor_recon.util.misc import WrappedDict, brief
 
 MARKER = "$"
 
@@ -30,6 +31,7 @@ IGNORE_T = Literal[IGNORE]
 KEY_T = Union[str, NOTHING_T]
 
 POSSIBLE_JSON_T = Union[JSON_T, IGNORE_T]
+
 
 def escape(value: JSON_T = None) -> JSON_T:
     """If the value is a string beginning with '$', replace it with '$$'.
@@ -74,6 +76,7 @@ class RemoteMapping(WrappedDict):
         self,
         serializer: "type[JSONEncoder]" = JSONEncoder,
         location: Optional[Path] = None,
+        write_trailing_newline: bool = True,
     ) -> None:
         """Serialize the contents of this mapping to its target."""
         target = self.target
@@ -85,6 +88,8 @@ class RemoteMapping(WrappedDict):
         target.parent.mkdir(exist_ok=True, parents=True)
         with open(target, "w") as f:
             json.dump(self._dict, f, cls=serializer, indent=4)
+            if write_trailing_newline:
+                f.write("\n")
 
 
 class VJSONDecoder(JSONDecoder):
@@ -188,9 +193,7 @@ class VJSONDecoder(JSONDecoder):
         return k, v
 
     @classmethod
-    def relative_decoder(
-        cls: "type[VJSONDecoder]", location: Path
-    ) -> "type[VJSONDecoder]":
+    def make_decoder(cls: "type[VJSONDecoder]", location: Path) -> "type[VJSONDecoder]":
         """Dynamically generate a VJSONDecoder `type` which can expand paths relative to `location`.
 
         This is useful since the class can be provided as the `cls` argument to `json.load()` and
@@ -262,3 +265,61 @@ class VJSONEncoder(JSONEncoder):
                 )
 
         return RelativeVJSONEncoder
+
+
+def load(source: Path, location: Path = None, **kwargs) -> MutableMapping:
+    """Load the object stored at `source` using a VJSONDecoder."""
+    with open(source, "r") as f:
+        return json.load(f, cls=VJSONDecoder.make_decoder(location), **kwargs)
+
+
+def loads(s: str, location: Path = None, **kwargs) -> MutableMapping:
+    """Load the given VJSON-formatted string into a dict."""
+    return json.loads(s, cls=VJSONDecoder.make_decoder(location), **kwargs)
+
+
+def dump(
+    obj: MutableMapping,
+    dest: Path,
+    location: Path = None,
+    write_remote_mappings: bool = True,
+    expand_remote_mappings: bool = False,
+    write_trailing_newline: bool = True,
+    indent: Optional[int] = 4,
+    **kwargs,
+) -> None:
+    """Dump the given object into the file specified by `dest` using a VJSONEncoder."""
+    with open(dest, "w") as f:
+        json.dump(
+            obj,
+            f,
+            cls=VJSONEncoder.make_encoder(
+                location,
+                write_remote_mappings=write_remote_mappings,
+                expand_remote_mappings=expand_remote_mappings,
+            ),
+            indent=indent,
+            **kwargs,
+        )
+        if write_trailing_newline:
+            f.write("\n")
+
+
+def dumps(
+    obj: MutableMapping,
+    location: Path = None,
+    expand_remote_mappings: bool = False,
+    indent: Optional[int] = 4,
+    **kwargs,
+) -> None:
+    """Dump the given object as a VJSON-formatted string."""
+    return json.dumps(
+        obj,
+        cls=VJSONEncoder.make_encoder(
+            location,
+            write_remote_mappings=False,
+            expand_remote_mappings=expand_remote_mappings,
+        ),
+        indent=indent,
+        **kwargs,
+    )

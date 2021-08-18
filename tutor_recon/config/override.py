@@ -11,9 +11,9 @@ from tutor_recon.util.misc import (
     walk_dict,
 )
 from tutor_recon.util.vjson import (
-    VJSONEncoder,
+    dump,
     format_unset,
-    VJSONDecoder,
+    load,
 )
 from tutor_recon.config.tutor import update_config, get_complete
 
@@ -83,8 +83,7 @@ class OverrideConfig(ABC):
         override_path = recon_root / self.recon_path
         if not override_path.exists():
             return dict()
-        with open(override_path, "r") as f:
-            return json.load(f, cls=VJSONDecoder.relative_decoder(override_path.parent))
+        return load(override_path, location=override_path.parent)
 
     def save_override_config(
         self, tutor_root: Path, recon_root: Path, settings: Optional[dict] = None
@@ -101,13 +100,7 @@ class OverrideConfig(ABC):
         override_path = recon_root / self.recon_path
         override_dir = override_path.parent
         override_dir.mkdir(exist_ok=True, parents=True)
-        with open(override_path, "w") as f:
-            json.dump(
-                complete,
-                f,
-                indent=4,
-                cls=VJSONEncoder.make_encoder(override_dir, write_remote_mappings=True),
-            )
+        dump(complete, override_path, location=override_dir)
 
 
 class TutorOverrideConfig(OverrideConfig):

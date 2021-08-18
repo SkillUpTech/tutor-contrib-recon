@@ -1,13 +1,12 @@
 """The MainConfig class definition and associated utility functions."""
 
-import json
 from pathlib import Path
 from typing import Optional
 
 from tutor_recon.util.misc import recursive_update
 from tutor_recon.util.vjson import (
     RemoteMapping,
-    VJSONEncoder,
+    dump,
 )
 from tutor_recon.config.override import (
     OverrideConfig,
@@ -46,13 +45,7 @@ class MainConfig:
         recursive_update(env, override_settings)
         main_path = recon_root / "main.v.json"
         recon_root.mkdir(exist_ok=True, parents=True)
-        with open(main_path, "w") as f:
-            json.dump(
-                env,
-                f,
-                cls=VJSONEncoder.make_encoder(recon_root, write_remote_mappings=True),
-                indent=4,
-            )
+        dump(env, main_path, location=recon_root)
 
     def apply_overrides(self, tutor_root: Path, recon_root: Path) -> None:
         for config in self._configs.values():
