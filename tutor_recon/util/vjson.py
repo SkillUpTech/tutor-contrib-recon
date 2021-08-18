@@ -311,7 +311,7 @@ def dumps(
     expand_remote_mappings: bool = False,
     indent: Optional[int] = 4,
     **kwargs,
-) -> None:
+) -> str:
     """Dump the given object as a VJSON-formatted string."""
     return json.dumps(
         obj,
