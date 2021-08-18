@@ -91,12 +91,6 @@ class VJSONDecoder(JSONDecoder):
     `$.`: Denotes the beginning of a relative path to anothor .json or .v.json spec to be substituted in its place.
           Always evaluates to an object.
     `$/`: Similar to above, but with an absolute path.
-    `$` : Signifies the beginning of a variable name.
-          If given as a key, it is added along with its corresponding value to the rendering namespace.
-          If given as a value, it is expanded to the corresponding value in the rendering namespace.
-
-    Two-character control sequences are checked before one-character control sequences, and keys are substituted before
-    values.
 
     A special built-in variable, `$default`, when given as a value (optionally followed by any sequence of characters,
     which are ignored), signifies that a keypair should be entirely ignored by the decoder.
@@ -121,7 +115,6 @@ class VJSONDecoder(JSONDecoder):
             ESCAPED_MARKER: lambda token, **_: token[1:],
             f"{MARKER}.": self.expand_relative,
             f"{MARKER}/": self.expand_absolute,
-            MARKER: self.handle_variable,
         }  # Stands for "control sequence mapping".
 
     def expand_escaped(self, value: JSON_T, key=NOT_SET) -> str:
@@ -169,26 +162,6 @@ class VJSONDecoder(JSONDecoder):
             return value[1:]
         return key[1:]
 
-    def handle_variable(
-        self, value: JSON_T, key: KEY_T = NOT_SET
-    ) -> Union[JSON_T, NOT_SET_T]:
-        """Store a value under `key` if `key` is set, otherwise handle a reference in `value`.
-
-        In other words:
-        - If `key` is set, `value` is stored under `key` so it can later be referenced.
-          `key` is then returned.
-        - If `key` is not set, expand the variable reference in in `value` and return the result
-          of the expansion.
-
-        If key is not set and value starts with `$default`, return NOT_SET.
-        """
-        if key is NOT_SET:
-            if value.startswith(f"{MARKER}{UNSET_CONST_NAME}"):
-                return NOT_SET
-            return self._env[value]
-        self._env[key] = value
-        return key
-
     def expand(self, pair: "tuple[str, JSON_T]") -> "tuple[str, JSON_T]":
         """Expand the (key, value) pair as appropriate.
 
@@ -196,18 +169,12 @@ class VJSONDecoder(JSONDecoder):
         """
         k, v = pair
         k2 = k[:2]
-        k1 = k[:1]
         if k2 in self._csm:
             k = self._csm[k2](v, key=k)
-        elif k1 in self._csm:
-            k = self._csm[k1](v, key=k)
         if isinstance(v, str):
             v2 = v[:2]
-            v1 = v[:1]
             if v2 in self._csm:
                 v = self._csm[v2](v)
-            elif v1 in self._csm:
-                v = self._csm[v1](v)
         elif isinstance(v, dict):
             v = self.object_hook(v)
         return k, v
