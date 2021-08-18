@@ -123,7 +123,7 @@ class VJSONDecoder(JSONDecoder):
 
     def object_hook(self, obj: dict) -> dict:
         gen_expanded = (self.expand(pair) for pair in obj.items())
-        return {k: v for k, v in gen_expanded if v is not NOTHING}
+        return {k: v for k, v in gen_expanded if v is not IGNORE}
 
     def expand_default(self, value: JSON_T, key: KEY_T = NOTHING) -> IGNORE_T:
         """Return `IGNORE`."""
