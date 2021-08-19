@@ -99,7 +99,7 @@ class VJSONDecoder(JSONDecoder):
         and are defined as follows:
 
     `$$`: A single `$` character. Valid as either a key or value.
-    `$.`: Denotes the beginning of a relative path to anothor .json or .v.json spec whose contents are to be substituted 
+    `$.`: Denotes the beginning of a relative path to anothor .json or .v.json spec whose contents are to be substituted
           in its place. Valid only as a value.
     `$/`: Similar to above, but with an absolute path. Valid only as a value.
     `$-`: When given as a value, optionally followed by any sequence of characters (which is ignored), signifies that
