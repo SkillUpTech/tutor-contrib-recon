@@ -1,17 +1,17 @@
 """The MainConfig class definition and associated utility functions."""
 
+import json
 from pathlib import Path
-from typing import Optional
 
-from tutor_recon.util.misc import recursive_update
-from tutor_recon.util.vjson import (
-    RemoteMapping,
-    dump,
-)
-from tutor_recon.config.override import (
-    OverrideConfig,
+from tutor_recon.util import vjson
+from tutor_recon.config.templates import TemplateOverride
+from tutor_recon.config.configs import (
     JSONOverrideConfig,
     TutorOverrideConfig,
+)
+from tutor_recon.config.override import (
+    OverrideMixin,
+    from_object,
 )
 
 JSON_CONFIG_MAP = {
@@ -19,77 +19,102 @@ JSON_CONFIG_MAP = {
     "env/apps/openedx/config/lms.env.json": "openedx/lms.env.v.json",
 }
 
+OVERRIDE_TYPE_MAP = {
+    "tutor": TutorOverrideConfig,
+    "json": JSONOverrideConfig,
+    "template": TemplateOverride,
+}
 
-class MainConfig:
+DEFAULT_OVERRIDES = [
+    ('tutor', 'config.yml'),
+    ('json', "env/apps/openedx/config/cms.env.json"),
+    ('json', "env/apps/openedx/config/lms.env.json"),
+]
+
+DEFAULT_MAIN_CONFIG = {
+    "overrides": [
+        {
+            "type": "tutor",
+            "dest": "config.yml",
+            "src": vjson.RemoteMapping(Path("tutor_config.v.json"))
+        },
+        {
+            "type": "json",
+            "dest": "env/apps/openedx/config/cms.env.json",
+            "src": vjson.RemoteMapping(Path("openedx/cms.env.v.json"))
+        },
+        {
+            "type": "json",
+            "dest": "env/apps/openedx/config/lms.env.json",
+            "src": vjson.RemoteMapping(Path("openedx/lms.env.v.json"))
+        },
+    ],
+}
+
+
+class MainConfig():
     """Container object for `OverrideConfig` instances."""
 
-    def __init__(self, configs: "dict[str, OverrideConfig]") -> None:
-        self._configs = configs
+    def __init__(self) -> None:
+        self._overrides = []
 
-    def load_overrides(self, tutor_root: Path, recon_root: Path) -> dict:
+    def load(self, recon_root: Path) -> None:
+        """Load the main overrides from file."""
+        main_path = recon_root / "main.v.json"
+        if main_path.exists():
+            override_objs = vjson.load(main_path, location=recon_root)["overrides"]
+            for obj in override_objs:
+                self._overrides.append(from_object(obj, OVERRIDE_TYPE_MAP))
+        else:
+            main_path.parent.mkdir(exist_ok=True, parents=True)
+            with open(main_path, "w") as f:
+                json.dump(DEFAULT_MAIN_CONFIG, fp=f)
+            self.load(recon_root)
+
+    def add_override(self, override: OverrideMixin) -> None:
+        self._overrides.append(override)
+
+    def as_obj(self) -> "dict[str, OverrideMixin]":
         return {
-            str(name): RemoteMapping(
-                config.recon_path, **config.get_complete(tutor_root, recon_root)
-            )
-            for name, config in self._configs.items()
+            "overrides": [
+                override.to_object(OVERRIDE_TYPE_MAP) for override in self._overrides
+            ],
         }
 
-    def save_overrides(
+    def save(
         self,
-        tutor_root: Path,
         recon_root: Path,
-        override_settings: Optional[dict] = None,
     ) -> None:
-        override_settings = override_settings if override_settings else dict()
-        env = self.load_overrides(tutor_root, recon_root)
-        recursive_update(env, override_settings)
+        """Serialize all override data into main.v.json."""
         main_path = recon_root / "main.v.json"
-        recon_root.mkdir(exist_ok=True, parents=True)
-        dump(env, main_path, location=recon_root)
+        vjson.dump(self.as_obj(), dest=main_path, location=recon_root)
 
-    def apply_overrides(self, tutor_root: Path, recon_root: Path) -> None:
-        for config in self._configs.values():
+    def apply(self, tutor_root: Path, recon_root: Path) -> None:
+        """Call `override()` on all configs."""
+        for config in self._overrides.values():
             config.override(tutor_root, recon_root)
 
 
-def get_all_configs() -> "list[OverrideConfig]":
+def get_all_configs() -> "list[OverrideMixin]":
     tutor_config = TutorOverrideConfig(
-        recon_path=Path("tutor_config.yml"), env_path=Path("config.yml")
+        src=Path("tutor_config.yml"), dest=Path("config.yml")
     )
     json_configs = [
-        JSONOverrideConfig(recon_path=v, env_path=k) for k, v in JSON_CONFIG_MAP.items()
+        JSONOverrideConfig(src=v, dest=k) for k, v in JSON_CONFIG_MAP.items()
     ]
     return [tutor_config] + json_configs
 
 
-def main_config() -> MainConfig:
-    # FIXME this should really dynamically gather the OverrideConfig objects based on the contents of main.v.json.
-    # The below will ultimately just be defaults.
-    config_map = {
-        "config.yml": TutorOverrideConfig(
-            recon_path=Path("tutor_config.v.json"), env_path=Path("config.yml")
-        )
-    }
-    config_map.update(
-        {
-            k: JSONOverrideConfig(recon_path=Path(v), env_path=Path(k))
-            for k, v in JSON_CONFIG_MAP.items()
-        }
-    )
-    return MainConfig(config_map)
+def main_config(recon_root: Path) -> MainConfig:
+    main = MainConfig()
+    main.load(recon_root)
+    return main
 
 
-def get_all_mappings(tutor_root: str, recon_root: str) -> "list[dict]":
-    """Get all configurations with overrides applied, mapped by their `env_path`."""
-    tutor_root, recon_root = map(Path, (tutor_root, recon_root))
-    return main_config().load_overrides(tutor_root, recon_root)
-
-
-def scaffold_all(tutor_root: str, recon_root: str) -> None:
-    tutor_root, recon_root = map(Path, (tutor_root, recon_root))
-    main_config().save_overrides(tutor_root, recon_root)
+def scaffold_all(recon_root: str) -> None:
+    main_config(recon_root).save(Path(recon_root))
 
 
 def override_all(tutor_root: str, recon_root: str) -> None:
     tutor_root, recon_root = map(Path, (tutor_root, recon_root))
-    main_config().apply_overrides(tutor_root, recon_root)
+    main_config(recon_root).apply(tutor_root, recon_root)
