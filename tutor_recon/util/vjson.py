@@ -417,7 +417,7 @@ class VJSONSerializableMixin:
     @classmethod
     def load(cls, from_: Path) -> "VJSONSerializableMixin":
         """Load the object in the vjson file at the given path."""
-        return cls.from_object(load(from_, from_.parent))
+        return load(from_, from_.parent)
 
 
 VJSON_T = Union[JSON_T, RemoteMapping, VJSONSerializableMixin]

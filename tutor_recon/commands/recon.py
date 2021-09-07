@@ -13,6 +13,7 @@ from tutor_recon.config.main import (
 )
 from tutor_recon.util.cli import emit
 from tutor_recon.util.paths import overrides_path, root_dirs
+from tutor_recon.util import vjson
 from tutor_recon.commands.tutor import tutor_config_save
 
 CONFIG_SAVE_STYLED = click.style("tutor config save", fg="blue")
@@ -82,7 +83,7 @@ def save(context: cloup.Context, tutor):
 @recon.command(help="Scaffold an override of a tutor template in its entirety.")
 @cloup.argument("path")
 @cloup.pass_context
-def replace_template(path: str):
+def replace_template(context: cloup.Context, path: str):
     _, recon_root = root_dirs(context)
     main = main_config(recon_root)
     recon_path = Path("templates") / path
@@ -93,3 +94,12 @@ def replace_template(path: str):
     emit(
         f"Change the file to your heart's content, then it will be rendered when you run {RECON_SAVE_STYLED}."
     )
+
+
+@recon.command(help="Print the current recon configuration as JSON.")
+@cloup.pass_context
+def list(context: cloup.Context):
+    _, recon_root = root_dirs(context)
+    main = main_config(recon_root)
+    config_str = vjson.dumps(main, expand_remote_mappings=True)
+    print(config_str)
