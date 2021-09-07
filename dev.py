@@ -171,6 +171,7 @@ def prep_pr(bump_rule: str = ""):
     git_merge("--squash", feature_branch)
     emit(f"Finished merge. Deleting {feature_branch}.")
     git_branch("-d", feature_branch)
+    git_commit(f"Squash and merge {feature_branch} into dev.")
     git_push()
     emit(f"Congratulations! You're ready to create a PR from dev into main.")
 
