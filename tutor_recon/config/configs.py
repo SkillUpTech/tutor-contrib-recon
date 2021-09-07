@@ -1,7 +1,7 @@
 """The OverrideConfig class and subclass definitions."""
 
 import json
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from pathlib import Path
 
 from tutor_recon.util.misc import (
@@ -15,7 +15,7 @@ from tutor_recon.config.tutor import update_config, get_complete
 from tutor_recon.config.override import OverrideMixin
 
 
-class OverrideConfig(OverrideMixin):
+class OverrideConfig(OverrideMixin, ABC):
     """A settings-like override configuration object."""
 
     @abstractmethod

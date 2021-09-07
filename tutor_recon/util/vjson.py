@@ -195,7 +195,7 @@ class VJSONDecoder(JSONDecoder):
         a .v.json-formatted text file.
         """
         assert key is NOTHING, "Relative path references are not supported in keys."
-        relpath = value[2:]
+        relpath = value[3:]
         path = location / relpath
         data = dict()
         if path.exists():
@@ -389,7 +389,7 @@ class VJSONSerializableMixin:
         updating the resulting dictionary with their serializable data. This way,
         type information added by the VJSONSerializableMixin is preserved.
         """
-        return {CUSTOM_TYPE: self.type_id()}
+        return {f"{MARKER}t": self.type_id()}
 
     @abstractclassmethod
     def from_object(cls, obj: "dict[str, VJSON_T]") -> "VJSONSerializableMixin":

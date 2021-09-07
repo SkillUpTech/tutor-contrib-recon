@@ -12,9 +12,9 @@ class OverrideMixin(vjson.VJSONSerializableMixin, ABC):
         self.src = src
         self.dest = dest
 
-    @abstractclassmethod
-    def default(cls, dest: Path) -> "OverrideMixin":
-        """Return the default instance for an override of the given `dest`."""
+    # @abstractclassmethod
+    # def default(cls, dest: Path) -> "OverrideMixin":
+    #     """Return the default instance for an override of the given `dest`."""
 
     @abstractmethod
     def override(self, tutor_root: Path, recon_root: Path) -> None:

@@ -13,23 +13,6 @@ from tutor_recon.config.override import (
     OverrideMixin,
 )
 
-JSON_CONFIG_MAP = {
-    "env/apps/openedx/config/cms.env.json": "openedx/cms.env.v.json",
-    "env/apps/openedx/config/lms.env.json": "openedx/lms.env.v.json",
-}
-
-OVERRIDE_TYPE_MAP = {
-    "tutor": TutorOverrideConfig,
-    "json": JSONOverrideConfig,
-    "template": TemplateOverride,
-}
-
-DEFAULT_OVERRIDES = [
-    ("tutor", "config.yml"),
-    ("json", "env/apps/openedx/config/cms.env.json"),
-    ("json", "env/apps/openedx/config/lms.env.json"),
-]
-
 DEFAULT_MAIN_CONFIG = json.dumps(
     {
         "$t": "main",
@@ -52,13 +35,6 @@ DEFAULT_MAIN_CONFIG = json.dumps(
         ],
     }
 )
-
-
-def get_default_overrides() -> "list[OverrideMixin]":
-    overrides = []
-    for type_str, dest in DEFAULT_OVERRIDES:
-        overrides.append(OVERRIDE_TYPE_MAP[type_str].default(dest))
-    return overrides
 
 
 class MainConfig(vjson.VJSONSerializableMixin):
@@ -87,9 +63,7 @@ class MainConfig(vjson.VJSONSerializableMixin):
         ret = super().to_object()
         ret.update(
             {
-                "overrides": [
-                    override.to_object(OVERRIDE_TYPE_MAP) for override in self.overrides
-                ],
+                "overrides": [override.to_object() for override in self.overrides],
             }
         )
         return ret
@@ -111,7 +85,7 @@ def main_config(recon_root: Path) -> MainConfig:
 
 
 def scaffold_all(recon_root: str) -> None:
-    main_config(recon_root).save(Path(recon_root))
+    main_config(recon_root).save(Path(recon_root / "main.v.json"))
 
 
 def override_all(tutor_root: str, recon_root: str) -> None:
