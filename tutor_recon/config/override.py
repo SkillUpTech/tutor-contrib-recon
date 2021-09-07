@@ -1,7 +1,6 @@
 """Mixin for objects which can aplly overrides to the Tutor environment."""
-from abc import ABC, abstractclassmethod, abstractmethod
+from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
 
 from tutor_recon.util import vjson
 
@@ -11,10 +10,6 @@ class OverrideMixin(vjson.VJSONSerializableMixin, ABC):
         super().__init__(**kwargs)
         self.src = src
         self.dest = dest
-
-    # @abstractclassmethod
-    # def default(cls, dest: Path) -> "OverrideMixin":
-    #     """Return the default instance for an override of the given `dest`."""
 
     @abstractmethod
     def override(self, tutor_root: Path, recon_root: Path) -> None:
