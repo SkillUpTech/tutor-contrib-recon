@@ -2,8 +2,10 @@
 
 from pathlib import Path
 
+import tutor
 from tutor.config import load_no_check, save_config_file, merge
 from tutor.config import load_all as tutor_load_all
+from tutor.env import Renderer
 
 from tutor_recon.util.vjson import format_unset
 
@@ -48,3 +50,15 @@ def update_config(tutor_root: Path, settings: dict) -> None:
     current = get_current(tutor_root)
     merge(settings, current)
     save_config_file(tutor_root, current)
+
+
+def template_source(template_relpath: Path) -> Path:
+    """Get the fully qualified path to the given template source file."""
+    source_dir = Path(tutor.__file__).parent / "templates"
+    return source_dir / template_relpath
+
+
+def render_template(source: Path, dest_dir: Path, tutor_root: Path) -> Path:
+    """Render the given template to the destination directory."""
+    renderer = Renderer(get_current(tutor_root), [str(source)])
+    renderer.render_all_to(str(dest_dir))

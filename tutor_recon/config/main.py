@@ -34,14 +34,11 @@ DEFAULT_MAIN_CONFIG = json.dumps(
 
 class MainConfig(vjson.VJSONSerializableMixin):
     """Container object for `OverrideConfig` instances."""
+    type_id = "main"
 
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
         self.overrides = []
-
-    @classmethod
-    def type_id(cls) -> str:
-        return "main"
 
     @classmethod
     def default(cls, recon_root: Path) -> "MainConfig":

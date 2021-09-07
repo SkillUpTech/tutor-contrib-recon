@@ -362,24 +362,24 @@ def dumps(
 class VJSONSerializableMixin:
     """Mixin for types which define `to_object` and `from_object` methods.
 
-    When subclassing, the `type_id()` class method of the subclass is used to determine
+    When subclassing, the `type_id` class attribute may be provided as
     a name to use in the serial representation's `"type"` attribute.
 
     This associates the string with the new type, thus allowing objects to be reconstructed
-    automagically from their serial format. Inheriting from this mixin is currently the
-    only way to create a custom type which is automatically (de)serializable.
+    "automagically" from their serial format. 
+    
+    Inheriting from this mixin is currently the only way to create a custom type which is 
+    automatically (de)serializable.
     """
 
     named_types = dict()
 
     def __init_subclass__(cls, **kwargs) -> None:
-        VJSONSerializableMixin.named_types[cls.type_id()] = cls
+        type_id = getattr(cls, "type_id", None)
+        if type_id is not None:
+            VJSONSerializableMixin.named_types[type_id] = cls
+            cls.type_id = type_id
         return super().__init_subclass__(**kwargs)
-
-    @classmethod
-    def type_id(cls) -> str:
-        """Return a unique string which identifies the type of this object."""
-        return str(cls.__name__)
 
     @abstractmethod
     def to_object(self) -> "dict[str, VJSON_T]":
@@ -389,7 +389,7 @@ class VJSONSerializableMixin:
         updating the resulting dictionary with their serializable data. This way,
         type information added by the VJSONSerializableMixin is preserved.
         """
-        return {f"{MARKER}t": self.type_id()}
+        return {f"{MARKER}t": self.type_id}
 
     @abstractclassmethod
     def from_object(cls, obj: "dict[str, VJSON_T]") -> "VJSONSerializableMixin":
