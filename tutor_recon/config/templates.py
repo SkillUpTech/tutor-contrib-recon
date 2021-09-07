@@ -27,15 +27,20 @@ class TemplateOverride(OverrideMixin):
         recon_template_path = recon_root / self.src
         if recon_template_path.exists():
             return
-        tutor_template_path = template_source(self.src)
+        tutor_template_path = template_source(self.dest)
         with open(tutor_template_path, "r") as f:
             original_template = f.read()
+        recon_template_path.parent.mkdir(exist_ok=True, parents=True)
         with open(recon_template_path, "w") as f:
             f.write(original_template)
 
     @classmethod
-    def for_template(cls, template_relpath: Path, recon_root: Path) -> "TemplateOverride":
+    def for_template(
+        cls, template_relpath: Path, recon_root: Path
+    ) -> "TemplateOverride":
         """Construct and scaffold (if necessary) a TemplateOverride for the given tutor template."""
-        instance = cls(src=str("templates" / template_relpath), dest=str(template_relpath))
+        instance = cls(
+            src=str(Path("templates") / template_relpath), dest=str(template_relpath)
+        )
         instance.scaffold(recon_root)
         return instance

@@ -220,6 +220,7 @@ def dev():
         metavar="RULE",
         type=cloup.Choice(
             [
+                "",
                 "major",
                 "minor",
                 "patch",
@@ -249,6 +250,7 @@ def dev():
 )
 @cloup.argument("files", nargs=-1)
 def publish(
+    commit: bool,
     message: str,
     push: bool,
     set_upstream: bool,
@@ -273,8 +275,9 @@ def publish(
             files.append(toml_file)
         if not message:
             message = f"[dev bot] Bump to version '{get_version()}'."
-    git_add(files)
-    git_commit(message)
+    if commit:
+        git_add(files)
+        git_commit(message)
     if tag:
         new_tag = git_tag(tag_message)
         if push_tag:

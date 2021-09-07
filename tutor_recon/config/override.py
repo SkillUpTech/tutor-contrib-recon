@@ -12,9 +12,6 @@ class OverrideMixin(vjson.VJSONSerializableMixin):
         self.src = src
         self.dest = dest
 
-    # def __init_subclass__(cls, **kwargs) -> None:
-    #     return super().__init_subclass__(**kwargs)
-
     @abstractmethod
     def override(self, tutor_root: Path, recon_root: Path) -> None:
         """Apply this override to the tutor environment."""

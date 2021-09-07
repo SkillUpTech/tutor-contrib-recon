@@ -17,6 +17,7 @@ from tutor_recon.config.override import OverrideMixin
 
 class OverrideConfig(OverrideMixin):
     """A settings-like override configuration object."""
+
     def __init__(self, src: vjson.VJSON_T, dest: Path, **kwargs) -> None:
         super().__init__(src, dest, **kwargs)
 
@@ -42,8 +43,7 @@ class OverrideConfig(OverrideMixin):
     def get_complete(self, tutor_root: Path, recon_root: Path) -> "list[dict]":
         """Return the full scaffold of this Config with all overrides applied."""
         scaffold = self.get_scaffold(tutor_root)
-        overrides = self.load_override_config(recon_root)
-        recursive_update(scaffold, overrides)
+        recursive_update(scaffold, self.src)
         return scaffold
 
     def with_new_overrides(
@@ -60,7 +60,7 @@ class OverrideConfig(OverrideMixin):
         To also apply new overrides, first call `write_override_file` with the new settings,
         the call this method.
         """
-        self.update_env(tutor_root, self.load_override_config(recon_root))
+        self.update_env(tutor_root, self.src)
 
     def load_override_config(self, recon_root: Path) -> dict:
         """Load the explicitly set override values from the relevant recon override file."""

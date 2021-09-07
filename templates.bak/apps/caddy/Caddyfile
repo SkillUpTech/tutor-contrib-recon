@@ -1,0 +1,8 @@
+  
+{{ LMS_HOST }} lilac-preview.spinup.tech lilac-cms.spinup.tech {
+    reverse_proxy nginx:80 {
+        tls /etc/ssl/private/spinup.cer /etc/ssl/private/spinup.pem
+        header_up X-Forwarded-Port 443
+    }
+}
+

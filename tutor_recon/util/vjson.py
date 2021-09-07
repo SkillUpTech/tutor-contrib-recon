@@ -201,7 +201,7 @@ class VJSONDecoder(JSONDecoder):
         if path.exists():
             with open(location / path, "r") as f:
                 data = json.load(f, cls=type(self))
-        return RemoteMapping(path, **data)
+        return RemoteMapping(Path(relpath), **data)
 
     def expand(self, pair: "tuple[str, JSON_T]") -> "tuple[str, JSON_T]":
         """Expand the (key, value) pair as appropriate.
@@ -366,9 +366,9 @@ class VJSONSerializableMixin:
     a name to use in the serial representation's `"type"` attribute.
 
     This associates the string with the new type, thus allowing objects to be reconstructed
-    "automagically" from their serial format. 
-    
-    Inheriting from this mixin is currently the only way to create a custom type which is 
+    "automagically" from their serial format.
+
+    Inheriting from this mixin is currently the only way to create a custom type which is
     automatically (de)serializable.
     """
 
@@ -412,7 +412,7 @@ class VJSONSerializableMixin:
         obj = self.to_object()
         location = to.parent
         location.mkdir(exist_ok=True, parents=True)
-        dump(obj, dest=to, location=location, **kwargs)
+        dump(obj, dest=str(to.resolve()), location=location, **kwargs)
 
     @classmethod
     def load(cls, from_: Path) -> "VJSONSerializableMixin":

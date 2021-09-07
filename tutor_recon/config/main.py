@@ -34,6 +34,7 @@ DEFAULT_MAIN_CONFIG = json.dumps(
 
 class MainConfig(vjson.VJSONSerializableMixin):
     """Container object for `OverrideConfig` instances."""
+
     type_id = "main"
 
     def __init__(self, **kwargs) -> None:
@@ -65,7 +66,7 @@ class MainConfig(vjson.VJSONSerializableMixin):
 
     def override(self, tutor_root: Path, recon_root: Path) -> None:
         """Call `override()` on all configs."""
-        for config in self.overrides.values():
+        for config in self.overrides:
             config.override(tutor_root, recon_root)
 
 

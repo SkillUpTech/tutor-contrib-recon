@@ -1,5 +1,6 @@
 """Retrieve environment information from Tutor."""
 
+import pkg_resources
 from pathlib import Path
 
 import tutor
@@ -54,8 +55,8 @@ def update_config(tutor_root: Path, settings: dict) -> None:
 
 def template_source(template_relpath: Path) -> Path:
     """Get the fully qualified path to the given template source file."""
-    source_dir = Path(tutor.__file__).parent / "templates"
-    return source_dir / template_relpath
+    source_dir = pkg_resources.resource_filename("tutor", "templates")
+    return Path(source_dir) / template_relpath
 
 
 def render_template(source: Path, dest_dir: Path, tutor_root: Path) -> Path:

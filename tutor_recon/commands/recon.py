@@ -86,11 +86,12 @@ def save(context: cloup.Context, tutor):
 def replace_template(context: cloup.Context, path: str):
     _, recon_root = root_dirs(context)
     main = main_config(recon_root)
-    recon_path = Path("templates") / path
-    main.add_override(TemplateOverride(src=recon_path, dest=path))
-    main.save(recon_root)
+    override = TemplateOverride.for_template(path, recon_root)
+    main.add_override(override)
+    override.scaffold(recon_root)
+    main.save(recon_root / "main.v.json")
     path_styled = click.style(str(path), fg="blue")
-    emit(f"Scaffolded {path_styled} at {recon_path} 👍.")
+    emit(f"Scaffolded {path_styled} at {Path(override.src).resolve()} 👍.")
     emit(
         f"Change the file to your heart's content, then it will be rendered when you run {RECON_SAVE_STYLED}."
     )
