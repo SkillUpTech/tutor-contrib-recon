@@ -39,25 +39,15 @@ def recon():
     default=None,
 )
 @cloup.option(
-    "--reset-location",
-    help="Reset the environment overrides directory location to default (has no effect if the directory is already in the default location).",
-    is_flag=True,
-)
-@cloup.option(
     "--tutor/--no-tutor",
     is_flag=True,
     default=True,
     help="Run/don't run 'tutor config save' prior to applying overrides.",
 )
 @cloup.pass_context
-def init(context: cloup.Context, env_dir, reset_location, tutor):
+def init(context: cloup.Context, env_dir, tutor):
     tutor_root = Path(context.obj.root)
-    if reset_location:
-        overrides_path(tutor_root=tutor_root).unlink(missing_ok=True)
-        recon_root = overrides_path(tutor_root=tutor_root)
-        emit(f"Set the new environment overrides location to {recon_root}.")
-    else:
-        recon_root = overrides_path(tutor_root=tutor_root, env_dir=env_dir).resolve()
+    recon_root = overrides_path(tutor_root=tutor_root, env_dir=env_dir).resolve()
     if tutor:
         run_tutor_config_save(context)
     scaffold_all(recon_root)

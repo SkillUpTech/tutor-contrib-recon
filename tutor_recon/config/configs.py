@@ -69,18 +69,18 @@ class OverrideConfig(OverrideMixin):
 
 
 class TutorOverrideConfig(OverrideConfig):
-    label = 'tutor'
-
     def load_from_env(self, tutor_root: Path) -> dict:
         return get_complete(tutor_root).copy()
 
     def update_env(self, tutor_root: Path, override_settings: dict) -> None:
         update_config(tutor_root, settings=override_settings)
 
+    @classmethod
+    def type_id(cls) -> str:
+        return "tutor"
+
 
 class JSONOverrideConfig(OverrideConfig):
-    label = 'json'
-    
     def load_from_env(self, tutor_root: Path) -> dict:
         with open(tutor_root / self.dest, "r") as f:
             return json.load(f)
@@ -90,3 +90,7 @@ class JSONOverrideConfig(OverrideConfig):
         recursive_update(env, override_settings)
         with open(tutor_root / self.dest, "w") as f:
             json.dump(env, f)
+
+    @classmethod
+    def type_id(cls) -> str:
+        return "json"

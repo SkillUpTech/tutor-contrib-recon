@@ -6,16 +6,11 @@ from typing import Any
 from tutor_recon.util import vjson
 
 
-class OverrideMixin(ABC):
-    def __init__(self, src: Any, dest: Path, **kwargs) -> None:
+class OverrideMixin(vjson.VJSONSerializableMixin, ABC):
+    def __init__(self, src: vjson.VJSON_T, dest: Path, **kwargs) -> None:
         super().__init__(**kwargs)
         self.src = src
         self.dest = dest
-
-    @property
-    @abstractclassmethod
-    def label(cls) -> str:
-        """Return a unique string which identifies the type of this object."""
 
     @abstractclassmethod
     def default(cls, dest: Path) -> "OverrideMixin":
@@ -26,21 +21,15 @@ class OverrideMixin(ABC):
         """Apply this override to the tutor environment."""
 
     def to_object(self) -> dict:
-        """A VJSON-friendly representation of this object."""
-        return {
-            "type": self.label,
-            "src": self.src,
-            "dest": self.dest,
-        }
+        obj = super().to_object()
+        obj.update(
+            {
+                "src": self.src,
+                "dest": self.dest,
+            }
+        )
+        return obj
 
-    def save(self, to: Path) -> None:
-        """Save this override to the VJSON file at the given path."""
-        obj = self.to_object()
-        vjson.dump(obj, dest=to, location=to.parent)
-
-
-def from_object(
-    obj: "dict[str, str]", type_map: "dict[str, OverrideMixin]"
-) -> "OverrideMixin":
-    type_, src, dest = type_map[obj["type"]], obj["src"], obj["dest"]
-    return type_(src=src, dest=dest)
+    @classmethod
+    def from_object(cls, obj: dict) -> "vjson.VJSONSerializableMixin":
+        return cls(src=obj["src"], dest=obj["dest"])

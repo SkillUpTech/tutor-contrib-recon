@@ -1,9 +1,10 @@
 """A custom JSON decoder and associated utilities."""
 
+from abc import abstractclassmethod, abstractmethod
 import json
-from json import JSONDecoder, JSONEncoder, JSONDecodeError
+from json import JSONDecoder, JSONEncoder
 from collections import MutableMapping
-from typing import Any, Literal, Optional, Union
+from typing import Literal, Optional, Union
 from pathlib import Path
 
 from tutor_recon.util.misc import WrappedDict, brief
@@ -24,9 +25,16 @@ IGNORE = object()
 When produced as a value, indicates that the entire keypair should be ignored.
 """
 
+CUSTOM_TYPE = object()
+"""
+When given as a key, indicates that the value denotes a custom type for the object.
+"""
+
 NOTHING_T = Literal[NOTHING]
 
 IGNORE_T = Literal[IGNORE]
+
+CUSTOM_TYPE_T = Literal[CUSTOM_TYPE]
 
 KEY_T = Union[str, NOTHING_T]
 
@@ -93,7 +101,7 @@ class RemoteMapping(WrappedDict):
 
 
 class VJSONDecoder(JSONDecoder):
-    """A custom JSON decoder which supports variable expansion along with references to objects in other files.
+    """A custom JSON decoder which supports references to objects in other files.
 
     Control sequences are two-character sequences which must occur at the beginning of an encoded string,
         and are defined as follows:
@@ -104,12 +112,14 @@ class VJSONDecoder(JSONDecoder):
     `$/`: Similar to above, but with an absolute path. Valid only as a value.
     `$-`: When given as a value, optionally followed by any sequence of characters (which is ignored), signifies that
           a keypair should be entirely ignored by the decoder.
+    `$t`: Specifies the unique type-identifier of a registered VJSON type to which the containing object should
+          be deserialized.
 
     The class can be instantiated with or without support for the relative path control sequence.
 
     Keyword arguments:
         location: The path to the file being decoded (to allow expansion of relative path references).
-                  Defaults to `None` (attempting to load a `$.` sequence will raise `JSONDecodeError`
+                  Defaults to `None` (attempting to load a `$.` sequence will raise `ValueError`
                   in this case).
 
     All other positional and keyword arguments are passed to `JSONDecoder.__init__()`.
@@ -124,11 +134,22 @@ class VJSONDecoder(JSONDecoder):
             f"{MARKER}.": self.expand_relative,
             f"{MARKER}/": self.expand_absolute,
             f"{MARKER}-": self.expand_default,
+            f"{MARKER}t": self.expand_custom_type,
         }  # Stands for "control sequence mapping".
 
     def object_hook(self, obj: dict) -> dict:
         gen_expanded = (self.expand(pair) for pair in obj.items())
-        return {k: v for k, v in gen_expanded if v is not IGNORE}
+        ret = {k: v for k, v in gen_expanded if v is not IGNORE}
+        custom_type = ret.pop(CUSTOM_TYPE, None)
+        if custom_type:
+            return custom_type.from_object(ret)
+        return ret
+
+    def expand_custom_type(
+        self, value: JSON_T, key: KEY_T = NOTHING
+    ) -> "tuple[CUSTOM_TYPE_T, VJSONSerializableMixin]":
+        assert key == f"{MARKER}t"
+        return CUSTOM_TYPE, VJSONSerializableMixin.by_type_id(value)
 
     def expand_default(self, value: JSON_T, key: KEY_T = NOTHING) -> IGNORE_T:
         """Return `IGNORE`."""
@@ -136,11 +157,16 @@ class VJSONDecoder(JSONDecoder):
         assert value.startswith(f"{MARKER}-")
         return IGNORE
 
-    def expand_escaped(self, value: JSON_T, key: KEY_T = NOTHING) -> str:
-        """Expand an escaped string."""
-        token = value if key is NOTHING else key
-        assert token.startswith(MARKER * 2)
-        return token[1:]
+    def expand_escaped(
+        self, value: JSON_T, key: KEY_T = NOTHING
+    ) -> "Union[VJSON_T, tuple[KEY_T, VJSON_T]]":
+        """Expand an escaped string. Works for either values or keys with values.
+
+        If both are given, expands the key and returns a tuple of the expanded `key` and unchanged `value`.
+        """
+        if key is NOTHING:
+            return value[1:]
+        return key[1:], value
 
     def expand_absolute(self, value: str, key: KEY_T = NOTHING) -> RemoteMapping:
         """Load the absolute path given in `value`. The path cannot be in the key.
@@ -157,9 +183,7 @@ class VJSONDecoder(JSONDecoder):
         f"""Load the given relative `path`."""
         assert key is NOTHING, "Relative path references are not supported in keys."
         if not self.location:
-            raise JSONDecodeError(
-                "This decoder does not support relative path references."
-            )
+            raise ValueError("This decoder does not support relative path references.")
         return self.expand_relative_to(self.location, value, key=key)
 
     def expand_relative_to(
@@ -171,19 +195,27 @@ class VJSONDecoder(JSONDecoder):
         a .v.json-formatted text file.
         """
         assert key is NOTHING, "Relative path references are not supported in keys."
-        path = Path(value[2:])
-        with open(location / path, "r") as f:
-            return RemoteMapping(path, **json.load(f, cls=type(self)))
+        relpath = value[2:]
+        path = location / relpath
+        data = dict()
+        if path.exists():
+            with open(location / path, "r") as f:
+                data = json.load(f, cls=type(self))
+        return RemoteMapping(path, **data)
 
     def expand(self, pair: "tuple[str, JSON_T]") -> "tuple[str, JSON_T]":
         """Expand the (key, value) pair as appropriate.
 
-        First expands the key, then the value.
+        First checks the key for a control sequence, then the value.
+
+        Control sequence expansion methods should return only a value if only the `value`
+        parameter is provided. Likewise, they should return a tuple of both the expanded
+        key and the original value if provided with both the `key` and `value` parameters.
         """
         k, v = pair
         k2 = k[:2]
         if k2 in self._csm:
-            k = self._csm[k2](v, key=k)
+            k, v = self._csm[k2](v, key=k)
         if isinstance(v, str):
             v2 = v[:2]
             if v2 in self._csm:
@@ -229,13 +261,15 @@ class VJSONEncoder(JSONEncoder):
         self.write_remote_mappings = write_remote_mappings
         self.expand_remote_mappings = expand_remote_mappings
 
-    def default(self, o: Any) -> Any:
+    def default(self, o: "VJSON_T") -> JSON_T:
         if isinstance(o, RemoteMapping):
             if self.write_remote_mappings:
                 o.write(type(self), self.location)
             if self.expand_remote_mappings:
                 return o.expand()
             return o.remote_reference
+        if isinstance(o, VJSONSerializableMixin):
+            return o.to_object()
         return super().default(o)
 
     @classmethod
@@ -279,7 +313,7 @@ def loads(s: str, location: Path = None, **kwargs) -> MutableMapping:
 
 
 def dump(
-    obj: MutableMapping,
+    obj: "MutableMapping[str, VJSON_T]",
     dest: Path,
     location: Path = None,
     write_remote_mappings: bool = True,
@@ -306,7 +340,7 @@ def dump(
 
 
 def dumps(
-    obj: MutableMapping,
+    obj: "MutableMapping[str, VJSON_T]",
     location: Path = None,
     expand_remote_mappings: bool = False,
     indent: Optional[int] = 4,
@@ -323,3 +357,68 @@ def dumps(
         indent=indent,
         **kwargs,
     )
+
+
+class VJSONSerializableMixin:
+    """Mixin for types which define `to_object` and `from_object` methods.
+
+    When subclassing, the `type_id()` class method of the subclass is used to determine
+    a name to use in the serial representation's `"type"` attribute.
+
+    This associates the string with the new type, thus allowing objects to be reconstructed
+    automagically from their serial format. Inheriting from this mixin is currently the
+    only way to create a custom type which is automatically (de)serializable.
+    """
+
+    named_types = dict()
+
+    def __init_subclass__(cls, **kwargs) -> None:
+        VJSONSerializableMixin.named_types[cls.type_id()] = cls
+        return super().__init_subclass__(**kwargs)
+
+    @classmethod
+    def type_id(cls) -> str:
+        """Return a unique string which identifies the type of this object."""
+        return str(cls.__name__)
+
+    @abstractmethod
+    def to_object(self) -> "dict[str, VJSON_T]":
+        """Return a VJSON-friendly representation of this object as a dict.
+
+        Implementations should generally start by calling `super().to_object()` and then
+        updating the resulting dictionary with their serializable data. This way,
+        type information added by the VJSONSerializableMixin is preserved.
+        """
+        return {CUSTOM_TYPE: self.type_id()}
+
+    @abstractclassmethod
+    def from_object(cls, obj: "dict[str, VJSON_T]") -> "VJSONSerializableMixin":
+        """Deserialize the given object and return the new instance of this type."""
+
+    @classmethod
+    def by_type_id(cls, type_id: str) -> "VJSONSerializableMixin":
+        """Return the class associated with the given type id."""
+        return cls.named_types[type_id]
+
+    def save(self, to: Path, **kwargs) -> None:
+        """Save this object to a VJSON file at the given path.
+
+        This implicitly saves any child objects which are provided by `self.to_object`
+        so it should only be called once when saving hierarchical types
+        (on the object at the top of the hierarchy).
+
+        Extra keyword arguments are passed to `vjson.dump()`.
+        """
+        obj = self.to_object()
+        location = to.parent
+        location.mkdir(exist_ok=True, parents=True)
+        dump(obj, dest=to, location=location, **kwargs)
+
+    @classmethod
+    def load(cls, from_: Path) -> "VJSONSerializableMixin":
+        """Load the object in the vjson file at the given path."""
+        return cls.from_object(load(from_, from_.parent))
+
+
+VJSON_T = Union[JSON_T, RemoteMapping, VJSONSerializableMixin]
+"""A type which can be represented as a string in the .v.json format."""

@@ -11,7 +11,6 @@ from tutor_recon.config.configs import (
 )
 from tutor_recon.config.override import (
     OverrideMixin,
-    from_object,
 )
 
 JSON_CONFIG_MAP = {
@@ -26,89 +25,89 @@ OVERRIDE_TYPE_MAP = {
 }
 
 DEFAULT_OVERRIDES = [
-    ('tutor', 'config.yml'),
-    ('json', "env/apps/openedx/config/cms.env.json"),
-    ('json', "env/apps/openedx/config/lms.env.json"),
+    ("tutor", "config.yml"),
+    ("json", "env/apps/openedx/config/cms.env.json"),
+    ("json", "env/apps/openedx/config/lms.env.json"),
 ]
 
-DEFAULT_MAIN_CONFIG = {
-    "overrides": [
-        {
-            "type": "tutor",
-            "dest": "config.yml",
-            "src": vjson.RemoteMapping(Path("tutor_config.v.json"))
-        },
-        {
-            "type": "json",
-            "dest": "env/apps/openedx/config/cms.env.json",
-            "src": vjson.RemoteMapping(Path("openedx/cms.env.v.json"))
-        },
-        {
-            "type": "json",
-            "dest": "env/apps/openedx/config/lms.env.json",
-            "src": vjson.RemoteMapping(Path("openedx/lms.env.v.json"))
-        },
-    ],
-}
+DEFAULT_MAIN_CONFIG = json.dumps(
+    {
+        "$t": "main",
+        "overrides": [
+            {
+                "$t": "tutor",
+                "dest": "config.yml",
+                "src": "$./tutor_config.v.json",
+            },
+            {
+                "$t": "json",
+                "dest": "env/apps/openedx/config/cms.env.json",
+                "src": "$./openedx/cms.env.v.json",
+            },
+            {
+                "$t": "json",
+                "dest": "env/apps/openedx/config/lms.env.json",
+                "src": "$./openedx/lms.env.v.json",
+            },
+        ],
+    }
+)
 
 
-class MainConfig():
+def get_default_overrides() -> "list[OverrideMixin]":
+    overrides = []
+    for type_str, dest in DEFAULT_OVERRIDES:
+        overrides.append(OVERRIDE_TYPE_MAP[type_str].default(dest))
+    return overrides
+
+
+class MainConfig(vjson.VJSONSerializableMixin):
     """Container object for `OverrideConfig` instances."""
 
-    def __init__(self) -> None:
-        self._overrides = []
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.overrides = []
 
-    def load(self, recon_root: Path) -> None:
-        """Load the main overrides from file."""
-        main_path = recon_root / "main.v.json"
-        if main_path.exists():
-            override_objs = vjson.load(main_path, location=recon_root)["overrides"]
-            for obj in override_objs:
-                self._overrides.append(from_object(obj, OVERRIDE_TYPE_MAP))
-        else:
-            main_path.parent.mkdir(exist_ok=True, parents=True)
-            with open(main_path, "w") as f:
-                json.dump(DEFAULT_MAIN_CONFIG, fp=f)
-            self.load(recon_root)
+    @classmethod
+    def type_id(cls) -> str:
+        return "main"
+
+    @classmethod
+    def default(cls, recon_root: Path) -> "MainConfig":
+        return vjson.loads(DEFAULT_MAIN_CONFIG, recon_root)
+
+    @classmethod
+    def from_object(cls, obj: dict) -> "vjson.VJSONSerializableMixin":
+        instance = cls()
+        overrides = obj["overrides"]
+        instance.overrides += overrides
+        return instance
+
+    def to_object(self) -> "dict[str, vjson.VJSON_T]":
+        ret = super().to_object()
+        ret.update(
+            {
+                "overrides": [
+                    override.to_object(OVERRIDE_TYPE_MAP) for override in self.overrides
+                ],
+            }
+        )
+        return ret
 
     def add_override(self, override: OverrideMixin) -> None:
-        self._overrides.append(override)
+        self.overrides.append(override)
 
-    def as_obj(self) -> "dict[str, OverrideMixin]":
-        return {
-            "overrides": [
-                override.to_object(OVERRIDE_TYPE_MAP) for override in self._overrides
-            ],
-        }
-
-    def save(
-        self,
-        recon_root: Path,
-    ) -> None:
-        """Serialize all override data into main.v.json."""
-        main_path = recon_root / "main.v.json"
-        vjson.dump(self.as_obj(), dest=main_path, location=recon_root)
-
-    def apply(self, tutor_root: Path, recon_root: Path) -> None:
+    def override(self, tutor_root: Path, recon_root: Path) -> None:
         """Call `override()` on all configs."""
-        for config in self._overrides.values():
+        for config in self.overrides.values():
             config.override(tutor_root, recon_root)
 
 
-def get_all_configs() -> "list[OverrideMixin]":
-    tutor_config = TutorOverrideConfig(
-        src=Path("tutor_config.yml"), dest=Path("config.yml")
-    )
-    json_configs = [
-        JSONOverrideConfig(src=v, dest=k) for k, v in JSON_CONFIG_MAP.items()
-    ]
-    return [tutor_config] + json_configs
-
-
 def main_config(recon_root: Path) -> MainConfig:
-    main = MainConfig()
-    main.load(recon_root)
-    return main
+    main_path = recon_root / "main.v.json"
+    if main_path.exists():
+        return MainConfig.load(recon_root / "main.v.json")
+    return MainConfig.default(recon_root)
 
 
 def scaffold_all(recon_root: str) -> None:
@@ -117,4 +116,4 @@ def scaffold_all(recon_root: str) -> None:
 
 def override_all(tutor_root: str, recon_root: str) -> None:
     tutor_root, recon_root = map(Path, (tutor_root, recon_root))
-    main_config(recon_root).apply(tutor_root, recon_root)
+    main_config(recon_root).override(tutor_root, recon_root)
