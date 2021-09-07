@@ -1,95 +1,86 @@
 """The MainConfig class definition and associated utility functions."""
 
+import json
 from pathlib import Path
-from typing import Optional
 
-from tutor_recon.util.misc import recursive_update
-from tutor_recon.util.vjson import (
-    RemoteMapping,
-    dump,
-)
+from tutor_recon.util import vjson
 from tutor_recon.config.override import (
-    OverrideConfig,
-    JSONOverrideConfig,
-    TutorOverrideConfig,
+    OverrideMixin,
 )
 
-JSON_CONFIG_MAP = {
-    "env/apps/openedx/config/cms.env.json": "openedx/cms.env.v.json",
-    "env/apps/openedx/config/lms.env.json": "openedx/lms.env.v.json",
-}
+DEFAULT_MAIN_CONFIG = json.dumps(
+    {
+        "$t": "main",
+        "overrides": [
+            {
+                "$t": "tutor",
+                "dest": "config.yml",
+                "src": "$./tutor_config.v.json",
+            },
+            {
+                "$t": "json",
+                "dest": "env/apps/openedx/config/cms.env.json",
+                "src": "$./openedx/cms.env.v.json",
+            },
+            {
+                "$t": "json",
+                "dest": "env/apps/openedx/config/lms.env.json",
+                "src": "$./openedx/lms.env.v.json",
+            },
+        ],
+    }
+)
 
 
-class MainConfig:
+class MainConfig(vjson.VJSONSerializableMixin):
     """Container object for `OverrideConfig` instances."""
 
-    def __init__(self, configs: "dict[str, OverrideConfig]") -> None:
-        self._configs = configs
+    type_id = "main"
 
-    def load_overrides(self, tutor_root: Path, recon_root: Path) -> dict:
-        return {
-            str(name): RemoteMapping(
-                config.recon_path, **config.get_complete(tutor_root, recon_root)
-            )
-            for name, config in self._configs.items()
-        }
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.overrides = []
 
-    def save_overrides(
-        self,
-        tutor_root: Path,
-        recon_root: Path,
-        override_settings: Optional[dict] = None,
-    ) -> None:
-        override_settings = override_settings if override_settings else dict()
-        env = self.load_overrides(tutor_root, recon_root)
-        recursive_update(env, override_settings)
-        main_path = recon_root / "main.v.json"
-        recon_root.mkdir(exist_ok=True, parents=True)
-        dump(env, main_path, location=recon_root)
+    @classmethod
+    def default(cls, recon_root: Path) -> "MainConfig":
+        return vjson.loads(DEFAULT_MAIN_CONFIG, recon_root)
 
-    def apply_overrides(self, tutor_root: Path, recon_root: Path) -> None:
-        for config in self._configs.values():
+    @classmethod
+    def from_object(cls, obj: dict) -> "vjson.VJSONSerializableMixin":
+        instance = cls()
+        overrides = obj["overrides"]
+        instance.overrides += overrides
+        return instance
+
+    def to_object(self) -> "dict[str, vjson.VJSON_T]":
+        ret = super().to_object()
+        ret.update(
+            {
+                "overrides": [override.to_object() for override in self.overrides],
+            }
+        )
+        return ret
+
+    def add_override(self, override: OverrideMixin) -> None:
+        self.overrides.append(override)
+
+    def override(self, tutor_root: Path, recon_root: Path) -> None:
+        """Call `override()` on all configs."""
+        for config in self.overrides:
             config.override(tutor_root, recon_root)
 
 
-def get_all_configs() -> "list[OverrideConfig]":
-    tutor_config = TutorOverrideConfig(
-        recon_path=Path("tutor_config.yml"), env_path=Path("config.yml")
-    )
-    json_configs = [
-        JSONOverrideConfig(recon_path=v, env_path=k) for k, v in JSON_CONFIG_MAP.items()
-    ]
-    return [tutor_config] + json_configs
+def main_config(recon_root: Path) -> MainConfig:
+    main_path = recon_root / "main.v.json"
+    if main_path.exists():
+        return MainConfig.load(recon_root / "main.v.json")
+    return MainConfig.default(recon_root)
 
 
-def main_config() -> MainConfig:
-    # FIXME this should really dynamically gather the OverrideConfig objects based on the contents of main.v.json.
-    # The below will ultimately just be defaults.
-    config_map = {
-        "config.yml": TutorOverrideConfig(
-            recon_path=Path("tutor_config.v.json"), env_path=Path("config.yml")
-        )
-    }
-    config_map.update(
-        {
-            k: JSONOverrideConfig(recon_path=Path(v), env_path=Path(k))
-            for k, v in JSON_CONFIG_MAP.items()
-        }
-    )
-    return MainConfig(config_map)
-
-
-def get_all_mappings(tutor_root: str, recon_root: str) -> "list[dict]":
-    """Get all configurations with overrides applied, mapped by their `env_path`."""
-    tutor_root, recon_root = map(Path, (tutor_root, recon_root))
-    return main_config().load_overrides(tutor_root, recon_root)
-
-
-def scaffold_all(tutor_root: str, recon_root: str) -> None:
-    tutor_root, recon_root = map(Path, (tutor_root, recon_root))
-    main_config().save_overrides(tutor_root, recon_root)
+def scaffold_all(recon_root: str) -> None:
+    main_config(recon_root).save(Path(recon_root / "main.v.json"))
 
 
 def override_all(tutor_root: str, recon_root: str) -> None:
     tutor_root, recon_root = map(Path, (tutor_root, recon_root))
-    main_config().apply_overrides(tutor_root, recon_root)
+    main_config(recon_root).override(tutor_root, recon_root)
