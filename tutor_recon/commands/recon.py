@@ -21,7 +21,7 @@ RECON_SAVE_STYLED = click.style("tutor recon save", fg="magenta")
 
 
 def run_tutor_config_save(context: cloup.Context) -> None:
-    emit(f"Running '{CONFIG_SAVE_STYLED}'.")
+    emit(f"Running {CONFIG_SAVE_STYLED}.")
     context.invoke(tutor_config_save)
 
 
@@ -51,9 +51,10 @@ def init(context: cloup.Context, env_dir, tutor):
     recon_root = overrides_path(tutor_root=tutor_root, env_dir=env_dir).resolve()
     if tutor:
         run_tutor_config_save(context)
-    scaffold_all(recon_root)
+    scaffold_all(tutor_root, recon_root)
+    recon_root_str = click.style(str(recon_root), fg="magenta")
     emit(
-        f"You're all set! Your environment overrides can be configured at '{recon_root}'."
+        f"You're all set! Your environment overrides can be configured at {recon_root_str} 👍"
     )
 
 
@@ -78,20 +79,21 @@ def save(context: cloup.Context, tutor):
         run_tutor_config_save(context)
     emit("Applying overrides.")
     override_all(tutor_root, recon_root)
+    emit("Done.")
 
 
 @recon.command(help="Scaffold an override of a tutor template in its entirety.")
 @cloup.argument("path")
 @cloup.pass_context
 def replace_template(context: cloup.Context, path: str):
-    _, recon_root = root_dirs(context)
+    tutor_root, recon_root = root_dirs(context)
     main = main_config(recon_root)
-    override = TemplateOverride.for_template(path, recon_root)
+    override = TemplateOverride.for_template(path)
     main.add_override(override)
-    override.scaffold(recon_root)
+    override.scaffold(tutor_root, recon_root)
     main.save(recon_root / "main.v.json")
     path_styled = click.style(str(path), fg="blue")
-    emit(f"Scaffolded {path_styled} at {Path(override.src).resolve()} 👍.")
+    emit(f"Scaffolded {path_styled} at {Path(override.src).resolve()} 👍")
     emit(
         f"Change the file to your heart's content, then it will be rendered when you run {RECON_SAVE_STYLED}."
     )

@@ -14,26 +14,26 @@ DEFAULT_MAIN_CONFIG = json.dumps(
         "overrides": [
             {
                 "$t": "tutor",
-                "dest": "config.yml",
-                "src": "$./tutor_config.v.json",
+                "target": "config.yml",
+                "overrides": "$./tutor_config.v.json",
             },
             {
                 "$t": "json",
-                "dest": "env/apps/openedx/config/cms.env.json",
-                "src": "$./openedx/cms.env.v.json",
+                "target": "env/apps/openedx/config/cms.env.json",
+                "overrides": "$./openedx/cms.env.v.json",
             },
             {
                 "$t": "json",
-                "dest": "env/apps/openedx/config/lms.env.json",
-                "src": "$./openedx/lms.env.v.json",
+                "target": "env/apps/openedx/config/lms.env.json",
+                "overrides": "$./openedx/lms.env.v.json",
             },
         ],
     }
 )
 
 
-class MainConfig(vjson.VJSONSerializableMixin):
-    """Container object for `OverrideConfig` instances."""
+class MainConfig(OverrideMixin):
+    """Main container which includes all relevant override objects."""
 
     type_id = "main"
 
@@ -61,6 +61,11 @@ class MainConfig(vjson.VJSONSerializableMixin):
         )
         return ret
 
+    def scaffold(self, tutor_root: Path, recon_root: Path) -> None:
+        for override in self.overrides:
+            override.scaffold(tutor_root, recon_root)
+        self.save(to=recon_root / "main.v.json")
+
     def add_override(self, override: OverrideMixin) -> None:
         self.overrides.append(override)
 
@@ -77,8 +82,8 @@ def main_config(recon_root: Path) -> MainConfig:
     return MainConfig.default(recon_root)
 
 
-def scaffold_all(recon_root: str) -> None:
-    main_config(recon_root).save(Path(recon_root / "main.v.json"))
+def scaffold_all(tutor_root: Path, recon_root: Path) -> None:
+    main_config(recon_root).scaffold(tutor_root, recon_root)
 
 
 def override_all(tutor_root: str, recon_root: str) -> None:
