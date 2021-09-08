@@ -1,31 +1,21 @@
-"""Mixin for objects which can aplly overrides to the Tutor environment."""
-from abc import ABC, abstractmethod
+"""Mixin for objects which can apply overrides to the Tutor environment."""
+from abc import abstractmethod
 from pathlib import Path
-from typing import Optional
 
 from tutor_recon.util import vjson
 
 
 class OverrideMixin(vjson.VJSONSerializableMixin):
-    def __init__(self, src: vjson.VJSON_T, dest: Path, **kwargs) -> None:
+    def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.src = src
-        self.dest = dest
 
     @abstractmethod
     def override(self, tutor_root: Path, recon_root: Path) -> None:
         """Apply this override to the tutor environment."""
 
-    def to_object(self) -> dict:
-        obj = super().to_object()
-        obj.update(
-            {
-                "src": self.src,
-                "dest": self.dest,
-            }
-        )
-        return obj
+    @abstractmethod
+    def scaffold(self, tutor_root: Path, recon_root: Path) -> None:
+        """Add any defaults and perform any necessary initialization for this object.
 
-    @classmethod
-    def from_object(cls, obj: dict) -> "vjson.VJSONSerializableMixin":
-        return cls(src=obj["src"], dest=obj["dest"])
+        Implementations should be idempotent.
+        """

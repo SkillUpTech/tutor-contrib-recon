@@ -11,7 +11,9 @@ class TemplateOverride(OverrideMixin):
     type_id = "template"
 
     def __init__(self, src: vjson.VJSON_T, dest: Path, **kwargs) -> None:
-        super().__init__(src, dest, **kwargs)
+        super().__init__(**kwargs)
+        self.src = src
+        self.dest = dest
 
     def override(self, tutor_root: Path, recon_root: Path) -> None:
         """Render the template to the tutor environment."""
@@ -19,7 +21,7 @@ class TemplateOverride(OverrideMixin):
         dest_dir = tutor_root / "templates"
         render_template(source_path, dest_dir, tutor_root)
 
-    def scaffold(self, recon_root: Path) -> None:
+    def scaffold(self, tutor_root: Path, recon_root: Path) -> None:
         """Create the template override, initially identical to the tutor version.
 
         Does nothing if the template already exists.
@@ -34,13 +36,24 @@ class TemplateOverride(OverrideMixin):
         with open(recon_template_path, "w") as f:
             f.write(original_template)
 
+    def to_object(self) -> dict:
+        obj = super().to_object()
+        obj.update(
+            {
+                "src": self.src,
+                "dest": self.dest,
+            }
+        )
+        return obj
+
     @classmethod
-    def for_template(
-        cls, template_relpath: Path, recon_root: Path
-    ) -> "TemplateOverride":
-        """Construct and scaffold (if necessary) a TemplateOverride for the given tutor template."""
+    def from_object(cls, obj: dict) -> "vjson.VJSONSerializableMixin":
+        return cls(src=obj["src"], dest=obj["dest"])
+
+    @classmethod
+    def for_template(cls, template_relpath: Path) -> "TemplateOverride":
+        """Construct a TemplateOverride for the given tutor template."""
         instance = cls(
             src=str(Path("templates") / template_relpath), dest=str(template_relpath)
         )
-        instance.scaffold(recon_root)
         return instance

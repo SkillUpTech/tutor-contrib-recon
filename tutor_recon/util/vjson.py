@@ -7,7 +7,7 @@ from collections import MutableMapping
 from typing import Literal, Optional, Union
 from pathlib import Path
 
-from tutor_recon.util.misc import WrappedDict, brief
+from tutor_recon.util.misc import WrappedDict, brief, set_nested, walk_dict
 
 MARKER = "$"
 
@@ -98,6 +98,17 @@ class RemoteMapping(WrappedDict):
             json.dump(self._dict, f, cls=serializer, indent=4)
             if write_trailing_newline:
                 f.write("\n")
+
+
+def expand_mappings(mapping: MutableMapping) -> dict:
+    """Recursively expand any remote mappings within `mapping`."""
+    ret = dict()
+    for keys, val in walk_dict(mapping):
+        if isinstance(val, RemoteMapping):
+            set_nested(ret, keys, val.expand())
+        else:
+            set_nested(ret, keys, val)
+    return ret
 
 
 class VJSONDecoder(JSONDecoder):

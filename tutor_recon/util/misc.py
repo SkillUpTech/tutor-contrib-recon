@@ -35,7 +35,7 @@ def walk_dict(
 def set_nested(mapping: Mapping, key_sequence: "Sequence[str]", value: Any) -> None:
     """Set the value in `mapping` under the given sequence of nested keys.
 
-    Sub-mappings are created as instances of the same type as `mapping` if they do not yet exist.
+    Sub-mappings are created as instances of `dict` if they do not yet exist.
     """
     assert key_sequence, "The sequence of keys cannot be empty."
     if len(key_sequence) == 1:
@@ -43,7 +43,7 @@ def set_nested(mapping: Mapping, key_sequence: "Sequence[str]", value: Any) -> N
     else:
         first, rest = key_sequence[0], key_sequence[1:]
         if first not in mapping:
-            mapping[first] = type(mapping)()
+            mapping[first] = dict()
         set_nested(mapping[first], rest, value)
 
 
