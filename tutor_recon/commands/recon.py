@@ -83,12 +83,12 @@ def save(context: cloup.Context, tutor):
 
 
 @recon.command(help="Scaffold an override of a tutor template in its entirety.")
-@cloup.argument("path")
+@cloup.argument("path", metavar="PATH_RELATIVE_TO_ENV")
 @cloup.pass_context
 def replace_template(context: cloup.Context, path: str):
     tutor_root, recon_root = root_dirs(context)
     main = main_config(recon_root)
-    override = TemplateOverride.for_template(path)
+    override = TemplateOverride.for_template(Path(path))
     main.add_override(override)
     override.scaffold(tutor_root, recon_root)
     main.save(recon_root / "main.v.json")

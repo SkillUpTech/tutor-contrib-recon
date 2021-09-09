@@ -29,7 +29,7 @@ class TemplateOverride(OverrideMixin):
         recon_template_path = recon_root / self.src
         if recon_template_path.exists():
             return
-        tutor_template_path = template_source(Path(self.dest))
+        tutor_template_path = template_source(Path(self.src).relative_to("templates"))
         with open(tutor_template_path, "r") as f:
             original_template = f.read()
         recon_template_path.parent.mkdir(exist_ok=True, parents=True)
@@ -54,7 +54,7 @@ class TemplateOverride(OverrideMixin):
     def for_template(cls, template_relpath: Path) -> "TemplateOverride":
         """Construct a TemplateOverride for the given tutor template."""
         instance = cls(
-            src=str(Path("templates") / template_relpath.relative_to("env")),
-            dest=str(template_relpath),
+            src=str(Path("templates") / template_relpath),
+            dest=str(Path("env") / template_relpath),
         )
         return instance
