@@ -97,4 +97,4 @@ class JSONOverrideConfig(OverrideConfig):
         env = self.load_from_env(tutor_root)
         recursive_update(env, override_settings)
         with open(tutor_root / self.target, "w") as f:
-            json.dump(env, f)
+            json.dump(env, f, indent=4)

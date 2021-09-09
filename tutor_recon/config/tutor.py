@@ -59,7 +59,11 @@ def template_source(template_relpath: Path) -> Path:
     return Path(source_dir) / template_relpath
 
 
-def render_template(source: Path, dest_dir: Path, tutor_root: Path) -> Path:
+def render_template(source: Path, dest: Path, tutor_root: Path) -> Path:
     """Render the given template to the destination directory."""
-    renderer = Renderer(get_current(tutor_root), [str(source)])
-    renderer.render_all_to(str(dest_dir))
+    renderer = Renderer.instance(get_complete(tutor_root))
+    with open(source, "r") as f:
+        template_str = f.read()
+    rendered_str = renderer.render_str(template_str)
+    with open(dest, "w") as f:
+        f.write(rendered_str)
