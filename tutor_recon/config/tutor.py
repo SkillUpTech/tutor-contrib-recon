@@ -12,7 +12,7 @@ from tutor_recon.util.vjson import format_unset
 
 
 def load_all(tutor_root: Path) -> dict:
-    """Retrive a tuple of (defaults, current_settings) from tutor."""
+    """Retrive a tuple of (current_settings, defaults) from tutor."""
     return tutor_load_all(tutor_root.resolve())
 
 
