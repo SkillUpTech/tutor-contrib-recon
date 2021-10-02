@@ -15,9 +15,12 @@ from tutor_recon.util.cli import emit
 from tutor_recon.util.paths import overrides_path, root_dirs
 from tutor_recon.util import vjson
 from tutor_recon.commands.tutor import tutor_config_save
-
-CONFIG_SAVE_STYLED = click.style("tutor config save", fg="blue")
-RECON_SAVE_STYLED = click.style("tutor recon save", fg="magenta")
+from tutor_recon.util.constants import (
+    CONFIG_SAVE_STYLED,
+    CONTEXT_SETTINGS,
+    PROGRAM_DESCRIPTION,
+    RECON_SAVE_STYLED,
+)
 
 
 def run_tutor_config_save(context: cloup.Context) -> None:
@@ -26,7 +29,8 @@ def run_tutor_config_save(context: cloup.Context) -> None:
 
 
 @cloup.group(
-    help="Allows overriding and rendering settings, files, and templates (in their entirety) from a central location."
+    context_settings=CONTEXT_SETTINGS,
+    help=PROGRAM_DESCRIPTION,
 )
 def recon():
     pass
