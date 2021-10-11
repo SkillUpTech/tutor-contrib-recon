@@ -12,7 +12,7 @@ Usage
 -----
 
 ```bash
-tutor plugins enable tutor_recon
+tutor plugins enable recon
 ```
 
 Development
@@ -80,7 +80,7 @@ tutor plugins list
 Use:
 
 ```bash
-tutor plugins enable tutor_recon
+tutor plugins enable recon
 ```
 
 to enable it.
