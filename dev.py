@@ -195,8 +195,9 @@ def publish(opts) -> None:
 @push_options
 @cloup.argument("branch_name", nargs=1, metavar="NAME")
 @assert_all_options_handled
-def new_feature(name: str, opts) -> None:
+def new_feature(opts) -> None:
     """Create a new feature branch based on origin/dev."""
+    name = opts.pop('branch_name')
     ensure_on_branch(DEV_BRANCH)
     git_checkout(name, new=True)
     git_fetch("dev")
@@ -328,8 +329,8 @@ def git_rebase(
     """
     cmd = ["git", "rebase"]
     if remote:
-        cmd += remote_name
-    cmd += branch_name
+        cmd += [remote_name]
+    cmd += [branch_name]
     run(cmd)
 
 
