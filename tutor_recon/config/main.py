@@ -1,91 +1,20 @@
-"""The MainConfig class definition and associated utility functions."""
-
-import json
 from pathlib import Path
 
-from tutor_recon.util import vjson
-from tutor_recon.config.override import (
-    OverrideMixin,
-)
-
-DEFAULT_MAIN_CONFIG = json.dumps(
-    {
-        "$t": "main",
-        "overrides": [
-            {
-                "$t": "tutor",
-                "target": "config.yml",
-                "overrides": "$./tutor_config.v.json",
-            },
-            {
-                "$t": "json",
-                "target": "env/apps/openedx/config/cms.env.json",
-                "overrides": "$./openedx/cms.env.v.json",
-            },
-            {
-                "$t": "json",
-                "target": "env/apps/openedx/config/lms.env.json",
-                "overrides": "$./openedx/lms.env.v.json",
-            },
-        ],
-    }
-)
+from tutor_recon.config.override_sequence import OverrideSequence
 
 
-class MainConfig(OverrideMixin):
-    """Main container which includes all relevant override objects."""
-
-    type_id = "main"
-
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.overrides = []
-
-    @classmethod
-    def default(cls, recon_root: Path) -> "MainConfig":
-        return vjson.loads(DEFAULT_MAIN_CONFIG, recon_root)
-
-    @classmethod
-    def from_object(cls, obj: dict) -> "vjson.VJSONSerializableMixin":
-        instance = cls()
-        overrides = obj["overrides"]
-        instance.overrides += overrides
-        return instance
-
-    def to_object(self) -> "dict[str, vjson.VJSON_T]":
-        ret = super().to_object()
-        ret.update(
-            {
-                "overrides": [override.to_object() for override in self.overrides],
-            }
-        )
-        return ret
-
-    def scaffold(self, tutor_root: Path, recon_root: Path) -> None:
-        for override in self.overrides:
-            override.scaffold(tutor_root, recon_root)
-        self.save(to=recon_root / "main.v.json")
-
-    def add_override(self, override: OverrideMixin) -> None:
-        self.overrides.append(override)
-
-    def override(self, tutor_root: Path, recon_root: Path) -> None:
-        """Call `override()` on all configs."""
-        for config in self.overrides:
-            config.override(tutor_root, recon_root)
-
-
-def main_config(recon_root: Path) -> MainConfig:
+def main_config(recon_root: Path) -> OverrideSequence:
     main_path = recon_root / "main.v.json"
     if main_path.exists():
-        return MainConfig.load(recon_root / "main.v.json")
-    return MainConfig.default(recon_root)
+        return OverrideSequence.load(main_path)
+    return OverrideSequence.default(recon_root)
 
 
 def scaffold_all(tutor_root: Path, recon_root: Path) -> None:
-    main_config(recon_root).scaffold(tutor_root, recon_root)
+    main = main_config(recon_root)
+    main.scaffold(tutor_root, recon_root)
+    main.save(to=recon_root / "main.v.json")
 
 
-def override_all(tutor_root: str, recon_root: str) -> None:
-    tutor_root, recon_root = map(Path, (tutor_root, recon_root))
+def override_all(tutor_root: Path, recon_root: Path) -> None:
     main_config(recon_root).override(tutor_root, recon_root)
