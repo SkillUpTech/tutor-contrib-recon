@@ -54,12 +54,45 @@ def escape(value: JSON_T = None) -> JSON_T:
 
 
 def format_unset(default: JSON_T = NOTHING, max_default_len=35) -> str:
-    """Return '$-', optionally with a parenthesized default value added after a space."""
+    """Return '$#', optionally with a parenthesized default value added after a space."""
     if default is not NOTHING:
         default = brief(repr(default), max_len=max_default_len)
-        return f"$- ({default})"
-    return f"$-"
+        return f"$# ({default})"
+    return f"$#"
 
+
+class RemoteObject():
+    def __init__(self, target: Path, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+        self.target = target
+
+    @property
+    def remote_reference(self) -> str:
+        if self.target.is_absolute():
+            return f"{MARKER}/{self.target}"
+        return f"{MARKER}./{self.target}"
+
+    def expand(self) -> dict:
+        return self._dict
+
+    def write(
+        self,
+        serializer: "type[JSONEncoder]" = JSONEncoder,
+        location: Optional[Path] = None,
+        write_trailing_newline: bool = True,
+    ) -> None:
+        """Serialize the contents of this mapping to its target."""
+        target = self.target
+        if not target.is_absolute():
+            assert (
+                location
+            ), f"Cannot write to relative path '{target}' without a location specified."
+            target = location / target
+        target.parent.mkdir(exist_ok=True, parents=True)
+        with open(target, "w") as f:
+            json.dump(self._dict, f, cls=serializer, indent=4)
+            if write_trailing_newline:
+                f.write("\n")
 
 class RemoteMapping(WrappedDict):
     """A dict-like type which keeps track of a `Path` to which it should be serialized.
@@ -121,7 +154,7 @@ class VJSONDecoder(JSONDecoder):
     `$.`: Denotes the beginning of a relative path to anothor .json or .v.json spec whose contents are to be substituted
           in its place. Valid only as a value.
     `$/`: Similar to above, but with an absolute path. Valid only as a value.
-    `$-`: When given as a value, optionally followed by any sequence of characters (which is ignored), signifies that
+    `$#`: When given as a value, optionally followed by any sequence of characters (which is ignored), signifies that
           a keypair should be entirely ignored by the decoder.
     `$t`: Specifies the unique type-identifier of a registered VJSON type to which the containing object should
           be deserialized.
@@ -144,7 +177,7 @@ class VJSONDecoder(JSONDecoder):
             MARKER * 2: self.expand_escaped,
             f"{MARKER}.": self.expand_relative,
             f"{MARKER}/": self.expand_absolute,
-            f"{MARKER}-": self.expand_default,
+            f"{MARKER}#": self.expand_default,
             f"{MARKER}t": self.expand_custom_type,
         }  # Stands for "control sequence mapping".
 
@@ -202,17 +235,12 @@ class VJSONDecoder(JSONDecoder):
     ) -> RemoteMapping:
         """Load the path given in `value` relative to `location`. The path cannot be in the key.
 
-        It is an error to set `key`. The file pointed to at `location / value` is assumed to be
+        It is an error to set `key`. The file pointed to at by the value is assumed to be
         a .v.json-formatted text file.
         """
-        assert key is NOTHING, "Relative path references are not supported in keys."
+        assert key is NOTHING, "Path references are not supported in keys."
         relpath = value[3:]
-        path = location / relpath
-        data = dict()
-        if path.exists():
-            with open(location / path, "r") as f:
-                data = json.load(f, cls=type(self))
-        return RemoteMapping(Path(relpath), **data)
+        return self.expand_absolute(value=f"$/{location / relpath}", key=key)
 
     def expand(self, pair: "tuple[str, JSON_T]") -> "tuple[str, JSON_T]":
         """Expand the (key, value) pair as appropriate.
@@ -389,7 +417,6 @@ class VJSONSerializableMixin:
         type_id = getattr(cls, "type_id", None)
         if type_id is not None:
             VJSONSerializableMixin.named_types[type_id] = cls
-            cls.type_id = type_id
         return super().__init_subclass__(**kwargs)
 
     @abstractmethod
