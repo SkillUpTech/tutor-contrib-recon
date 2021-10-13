@@ -202,6 +202,7 @@ class VJSONDecoder(JSONDecoder):
         The file must contain a single JSON object.
         """
         if not path.exists():
+            path.parent.mkdir(exist_ok=True, parents=True)
             with open(path, "w") as f:
                 json.dump(dict(), fp=f)
             return RemoteMapping(target=path)
