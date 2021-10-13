@@ -1,6 +1,6 @@
 """A custom JSON decoder and associated utilities."""
 
-from abc import abstractclassmethod, abstractmethod
+from abc import ABC, abstractclassmethod, abstractmethod
 import json
 from json import JSONDecoder, JSONEncoder
 from collections import MutableMapping
@@ -61,19 +61,21 @@ def format_unset(default: JSON_T = NOTHING, max_default_len=35) -> str:
     return f"$#"
 
 
-class RemoteObject():
+class RemoteReferenceMixin(ABC):
     def __init__(self, target: Path, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.target = target
 
     @property
-    def remote_reference(self) -> str:
+    def reference_str(self) -> str:
+        """The absolute or relative control sequence string used to reference the object."""
         if self.target.is_absolute():
             return f"{MARKER}/{self.target}"
         return f"{MARKER}./{self.target}"
 
-    def expand(self) -> dict:
-        return self._dict
+    @abstractmethod
+    def expand(self) -> JSON_T:
+        """Return the referenced data."""
 
     def write(
         self,
@@ -90,47 +92,15 @@ class RemoteObject():
             target = location / target
         target.parent.mkdir(exist_ok=True, parents=True)
         with open(target, "w") as f:
-            json.dump(self._dict, f, cls=serializer, indent=4)
+            json.dump(self.expand(), f, cls=serializer, indent=4)
             if write_trailing_newline:
                 f.write("\n")
 
-class RemoteMapping(WrappedDict):
-    """A dict-like type which keeps track of a `Path` to which it should be serialized.
-
-    The path can be relative or absolute--it just needs to be kept as one or the other.
-    """
-
-    def __init__(self, target: Path, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.target = target
-
-    @property
-    def remote_reference(self) -> str:
-        if self.target.is_absolute():
-            return f"{MARKER}/{self.target}"
-        return f"{MARKER}./{self.target}"
+class RemoteMapping(WrappedDict, RemoteReferenceMixin):
+    """A dict-like reference to a JSON mapping (object) stored in another file."""
 
     def expand(self) -> dict:
         return self._dict
-
-    def write(
-        self,
-        serializer: "type[JSONEncoder]" = JSONEncoder,
-        location: Optional[Path] = None,
-        write_trailing_newline: bool = True,
-    ) -> None:
-        """Serialize the contents of this mapping to its target."""
-        target = self.target
-        if not target.is_absolute():
-            assert (
-                location
-            ), f"Cannot write to relative path '{target}' without a location specified."
-            target = location / target
-        target.parent.mkdir(exist_ok=True, parents=True)
-        with open(target, "w") as f:
-            json.dump(self._dict, f, cls=serializer, indent=4)
-            if write_trailing_newline:
-                f.write("\n")
 
 
 def expand_mappings(mapping: MutableMapping) -> dict:
@@ -197,8 +167,8 @@ class VJSONDecoder(JSONDecoder):
 
     def expand_default(self, value: JSON_T, key: KEY_T = NOTHING) -> IGNORE_T:
         """Return `IGNORE`."""
-        assert key is NOTHING, "'$-' cannot be expanded in a key."
-        assert value.startswith(f"{MARKER}-")
+        assert key is NOTHING, "'$#' cannot be expanded in a key."
+        assert value.startswith(f"{MARKER}#")
         return IGNORE
 
     def expand_escaped(
@@ -301,12 +271,12 @@ class VJSONEncoder(JSONEncoder):
         self.expand_remote_mappings = expand_remote_mappings
 
     def default(self, o: "VJSON_T") -> JSON_T:
-        if isinstance(o, RemoteMapping):
+        if isinstance(o, RemoteReferenceMixin):
             if self.write_remote_mappings:
                 o.write(type(self), self.location)
             if self.expand_remote_mappings:
                 return o.expand()
-            return o.remote_reference
+            return o.reference_str
         if isinstance(o, VJSONSerializableMixin):
             return o.to_object()
         return super().default(o)
