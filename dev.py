@@ -120,7 +120,7 @@ def handle_release_and_tag(opts: "dict[str, Any]") -> None:
     )
     if bump:
         bump_version(bump)
-        git_add("pyproject.toml")
+        git_add(["pyproject.toml"])
         git_commit(f"[dev bot] Bump to {get_version()}.")
     if tag:
         new_tag = git_tag(tag_message)
@@ -286,7 +286,7 @@ def bump_and_commit(rule: str) -> None:
     """Bump the version according to the rule, then add and commit pyproject.toml."""
     emit(f"Bumping the {rule} version.")
     bump_version(rule)
-    git_add("pyproject.toml")
+    git_add(["pyproject.toml"])
     git_commit(f"[dev bot] Bump to v{get_version()}.")
 
 
@@ -404,7 +404,7 @@ def merge_feature_to_dev():
     )
     git_merge("--squash", feature_branch)
     emit(f"Finished merge.")
-    git_add(".")
+    git_add(["."])
     git_commit(f"Squash and merge {feature_branch} into dev.")
     emit(f"Created commit.")
     push_cmd = click.style(f"git push", fg="yellow")
