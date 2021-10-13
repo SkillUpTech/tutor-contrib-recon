@@ -16,12 +16,8 @@ class OverrideReference(OverrideMixin):
 
     def to_object(self) -> dict:
         obj = super().to_object()
-        obj.update({"override": self.override})
+        obj.update({"override": self.override.to_object()})
         return obj
-
-    @classmethod
-    def from_object(cls, obj: dict) -> "vjson.VJSONSerializableMixin":
-        return cls(override=obj["override"])
 
     def scaffold(self, tutor_root: Path, recon_root: Path) -> None:
         self.override.scaffold(tutor_root, recon_root)

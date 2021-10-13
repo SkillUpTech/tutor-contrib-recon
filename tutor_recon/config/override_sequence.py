@@ -1,6 +1,7 @@
 """The OverrideSequence container class definition."""
 
 from pathlib import Path
+from typing import Optional
 
 from tutor_recon.util import vjson
 from tutor_recon.config.override import (
@@ -14,20 +15,15 @@ class OverrideSequence(OverrideMixin):
 
     type_id = "override-sequence"
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(
+        self, overrides: "Optional[list[OverrideMixin]]" = None, **kwargs
+    ) -> None:
         super().__init__(**kwargs)
-        self.overrides = []
+        self.overrides = overrides if overrides else list()
 
     @classmethod
     def default(cls, recon_root: Path) -> "OverrideSequence":
         return vjson.loads(DEFAULT_OVERRIDE_SEQUENCE, recon_root)
-
-    @classmethod
-    def from_object(cls, obj: dict) -> "vjson.VJSONSerializableMixin":
-        instance = cls()
-        overrides = obj["overrides"]
-        instance.overrides += overrides
-        return instance
 
     def to_object(self) -> "dict[str, vjson.VJSON_T]":
         ret = super().to_object()

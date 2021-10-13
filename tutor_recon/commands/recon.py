@@ -1,6 +1,8 @@
 """The Recon CLI definitions."""
 
 from pathlib import Path
+from tutor_recon.config.override_sequence import OverrideSequence
+from tutor_recon.config.reference import OverrideReference
 from tutor_recon.config.templates import TemplateOverride
 
 import click
@@ -111,3 +113,18 @@ def list(context: cloup.Context):
     main = main_config(recon_root)
     config_str = vjson.dumps(main, expand_remote_mappings=True)
     print(config_str)
+
+
+@recon.command(help="Create a new override module with the given name.")
+@cloup.argument("name", metavar="MODULE_NAME")
+@cloup.pass_context
+def new_module(context: cloup.Context, name: str):
+    tutor_root, recon_root = root_dirs(context)
+    target = Path("modules") / f"{name}.v.json"
+    main = main_config(recon_root)
+    sequence = OverrideSequence.from_object(vjson.RemoteMapping(target=target))
+    reference = OverrideReference(sequence)
+    main.add_override(reference)
+    reference.scaffold(tutor_root, recon_root)
+    main.save(recon_root / "main.v.json")
+    emit(f"Created new override module at {target} 👍")

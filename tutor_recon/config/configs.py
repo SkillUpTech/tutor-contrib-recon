@@ -44,10 +44,6 @@ class OverrideConfig(OverrideMixin):
         )
         return obj
 
-    @classmethod
-    def from_object(cls, obj: dict) -> "vjson.VJSONSerializableMixin":
-        return cls(overrides=obj["overrides"], target=obj["target"])
-
     def scaffold(self, tutor_root: Path, recon_root: Path) -> None:
         recursive_update(self.overrides, self.get_complete(tutor_root))
 

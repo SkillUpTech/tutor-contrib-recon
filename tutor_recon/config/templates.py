@@ -47,10 +47,6 @@ class TemplateOverride(OverrideMixin):
         return obj
 
     @classmethod
-    def from_object(cls, obj: dict) -> "vjson.VJSONSerializableMixin":
-        return cls(src=obj["src"], dest=obj["dest"])
-
-    @classmethod
     def for_template(cls, template_relpath: Path) -> "TemplateOverride":
         """Construct a TemplateOverride for the given tutor template."""
         instance = cls(
