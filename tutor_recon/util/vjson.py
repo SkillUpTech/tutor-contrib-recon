@@ -6,6 +6,7 @@ from json import JSONDecoder, JSONEncoder
 from collections import MutableMapping
 from typing import Literal, Optional, Union
 from pathlib import Path
+from copy import copy
 
 from tutor_recon.util.misc import WrappedDict, brief, set_nested, walk_dict
 
@@ -95,6 +96,7 @@ class RemoteReferenceMixin(ABC):
             json.dump(self.expand(), f, cls=serializer, indent=4)
             if write_trailing_newline:
                 f.write("\n")
+
 
 class RemoteMapping(WrappedDict, RemoteReferenceMixin):
     """A dict-like reference to a JSON mapping (object) stored in another file."""
@@ -191,7 +193,9 @@ class VJSONDecoder(JSONDecoder):
         assert key is NOTHING, "Absolute path references are not supported in keys."
         path = Path(value[2:])
         with open(path, "r") as f:
-            return RemoteMapping(path, **json.load(f, cls=type(self)))
+            return RemoteMapping(
+                path, **json.load(f, cls=self.make_decoder(path.parent))
+            )
 
     def expand_relative(self, value: str, key: KEY_T = NOTHING) -> RemoteMapping:
         f"""Load the given relative `path`."""
@@ -205,12 +209,14 @@ class VJSONDecoder(JSONDecoder):
     ) -> RemoteMapping:
         """Load the path given in `value` relative to `location`. The path cannot be in the key.
 
-        It is an error to set `key`. The file pointed to at by the value is assumed to be
-        a .v.json-formatted text file.
+        It is an error to set `key`. The file pointed to by the value must contain a JSON object.
         """
-        assert key is NOTHING, "Path references are not supported in keys."
+        assert key is NOTHING, "Relative path references are not supported in keys."
         relpath = value[3:]
-        return self.expand_absolute(value=f"$/{location / relpath}", key=key)
+        path = location / relpath
+        with open(path, "r") as f:
+            data = json.load(f, cls=self.make_decoder(path.parent))
+        return RemoteMapping(Path(relpath), **data)
 
     def expand(self, pair: "tuple[str, JSON_T]") -> "tuple[str, JSON_T]":
         """Expand the (key, value) pair as appropriate.
@@ -270,10 +276,19 @@ class VJSONEncoder(JSONEncoder):
         self.write_remote_mappings = write_remote_mappings
         self.expand_remote_mappings = expand_remote_mappings
 
+    def params(self) -> dict:
+        return {
+            key: getattr(self, key)
+            for key in (
+                "write_remote_mappings",
+                "expand_remote_mappings",
+            )
+        }
+
     def default(self, o: "VJSON_T") -> JSON_T:
         if isinstance(o, RemoteReferenceMixin):
             if self.write_remote_mappings:
-                o.write(type(self), self.location)
+                o.write(self.make_encoder(o.target.parent, **self.params()), self.location)
             if self.expand_remote_mappings:
                 return o.expand()
             return o.reference_str
