@@ -63,8 +63,8 @@ def format_unset(default: JSON_T = NOTHING, max_default_len=35) -> str:
 
 
 class RemoteReferenceMixin(ABC):
-    def __init__(self, target: Path, *args, **kwargs) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, *, target: Path, **kwargs) -> None:
+        super().__init__(**kwargs)
         self.target = target
 
     @property
@@ -83,6 +83,7 @@ class RemoteReferenceMixin(ABC):
         serializer: "type[JSONEncoder]" = JSONEncoder,
         location: Optional[Path] = None,
         write_trailing_newline: bool = True,
+        **kwargs,
     ) -> None:
         """Serialize the contents of this mapping to its target."""
         target = self.target
@@ -93,13 +94,16 @@ class RemoteReferenceMixin(ABC):
             target = location / target
         target.parent.mkdir(exist_ok=True, parents=True)
         with open(target, "w") as f:
-            json.dump(self.expand(), f, cls=serializer, indent=4)
+            json.dump(self.expand(), f, cls=serializer, **kwargs)
             if write_trailing_newline:
                 f.write("\n")
 
 
-class RemoteMapping(WrappedDict, RemoteReferenceMixin):
+class RemoteMapping(RemoteReferenceMixin, WrappedDict):
     """A dict-like reference to a JSON mapping (object) stored in another file."""
+
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
     def expand(self) -> dict:
         return self._dict
@@ -142,9 +146,10 @@ class VJSONDecoder(JSONDecoder):
     The `object_hook` keyword cannot be set since it is used internally.
     """
 
-    def __init__(self, *args, location: Optional[Path] = None, **kwargs) -> None:
-        super().__init__(*args, object_hook=self.object_hook, **kwargs)
+    def __init__(self, location: Optional[Path] = None, **kwargs) -> None:
+        super().__init__(object_hook=self.object_hook, **kwargs)
         self.location = location
+        self._params = kwargs.copy()
         self._csm = {
             MARKER * 2: self.expand_escaped,
             f"{MARKER}.": self.expand_relative,
@@ -152,6 +157,10 @@ class VJSONDecoder(JSONDecoder):
             f"{MARKER}#": self.expand_default,
             f"{MARKER}t": self.expand_custom_type,
         }  # Stands for "control sequence mapping".
+
+    def params(self) -> dict:
+        """Return a dictionary of all keyword arguments used to instantiate this object apart from `location`."""
+        return self._params.copy()
 
     def object_hook(self, obj: dict) -> dict:
         gen_expanded = (self.expand(pair) for pair in obj.items())
@@ -194,7 +203,7 @@ class VJSONDecoder(JSONDecoder):
         path = Path(value[2:])
         with open(path, "r") as f:
             return RemoteMapping(
-                path, **json.load(f, cls=self.make_decoder(path.parent))
+                target=path, **json.load(f, cls=type(self), **self.params())
             )
 
     def expand_relative(self, value: str, key: KEY_T = NOTHING) -> RemoteMapping:
@@ -215,8 +224,8 @@ class VJSONDecoder(JSONDecoder):
         relpath = value[3:]
         path = location / relpath
         with open(path, "r") as f:
-            data = json.load(f, cls=self.make_decoder(path.parent))
-        return RemoteMapping(Path(relpath), **data)
+            data = json.load(f, cls=type(self), **self.params())
+        return RemoteMapping(target=path, **data)
 
     def expand(self, pair: "tuple[str, JSON_T]") -> "tuple[str, JSON_T]":
         """Expand the (key, value) pair as appropriate.
@@ -239,23 +248,6 @@ class VJSONDecoder(JSONDecoder):
             v = self.object_hook(v)
         return k, v
 
-    @classmethod
-    def make_decoder(cls: "type[VJSONDecoder]", location: Path) -> "type[VJSONDecoder]":
-        """Dynamically generate a VJSONDecoder `type` which can expand paths relative to `location`.
-
-        This is useful since the class can be provided as the `cls` argument to `json.load()` and
-        `json.loads()`. If VJSONDecoder is passed directly, relative file references will not work,
-        since instances are not provided with the path to the file being decoded by the `json` module.
-        """
-
-        class RelativeVJSONDecoder(cls):
-            f"""A `{cls.__name__}` which supports file references relative to '{location}'."""
-
-            def __init__(self, *args, **kwargs):
-                super().__init__(*args, location=location, **kwargs)
-
-        return RelativeVJSONDecoder
-
 
 class VJSONEncoder(JSONEncoder):
     """Serializer counterpart to `VJSONDecoder`.
@@ -265,30 +257,32 @@ class VJSONEncoder(JSONEncoder):
 
     def __init__(
         self,
-        *args,
         location: Optional[Path] = None,
-        write_remote_mappings: bool = False,
-        expand_remote_mappings: bool = False,
         **kwargs,
     ) -> None:
-        super().__init__(*args, **kwargs)
+        """
+        **kwargs:
+            location (Path): The base path to use when expanding relative references.
+            write_remote_mappings (bool): Whether to update the files corresponding to
+                remote references during serialization.
+            expand_remote_mappings (bool): If True, write the content of the files corresponding
+                to remote references directly in the output file.
+            - Remaining arguments are passed to JSONEncoder.__init__().
+        """
+        self._params = kwargs.copy()
+        self.write_remote_mappings = kwargs.pop("write_remote_mappings")
+        self.expand_remote_mappings = kwargs.pop("expand_remote_mappings")
         self.location = location
-        self.write_remote_mappings = write_remote_mappings
-        self.expand_remote_mappings = expand_remote_mappings
+        super().__init__(**kwargs)
 
     def params(self) -> dict:
-        return {
-            key: getattr(self, key)
-            for key in (
-                "write_remote_mappings",
-                "expand_remote_mappings",
-            )
-        }
+        """Return a dictionary of all keyword arguments used to instantiate this object apart from `location`."""
+        return self._params.copy()
 
     def default(self, o: "VJSON_T") -> JSON_T:
         if isinstance(o, RemoteReferenceMixin):
             if self.write_remote_mappings:
-                o.write(self.make_encoder(o.target.parent, **self.params()), self.location)
+                o.write(type(self), self.location, **self.params())
             if self.expand_remote_mappings:
                 return o.expand()
             return o.reference_str
@@ -296,44 +290,16 @@ class VJSONEncoder(JSONEncoder):
             return o.to_object()
         return super().default(o)
 
-    @classmethod
-    def make_encoder(
-        cls: "type[VJSONEncoder]",
-        location: Path,
-        write_remote_mappings: bool = False,
-        expand_remote_mappings: bool = False,
-    ) -> "type[VJSONEncoder]":
-        """Dynamically generate a VJSONEncoder `type` which can expand paths relative to `location`.
 
-        This is useful since the class can be provided as the `cls` argument to `json.dump()` and
-        `json.dumps()`. If VJSONEncoder is passed directly, relative file references will not work,
-        since instances are not provided with the path to the file being encoded by the `json` module.
-        """
-
-        class RelativeVJSONEncoder(cls):
-            f"""A `{cls.__name__}` which supports file references relative to '{location}'."""
-
-            def __init__(self, *args, **kwargs):
-                super().__init__(
-                    *args,
-                    location=location,
-                    write_remote_mappings=write_remote_mappings,
-                    expand_remote_mappings=expand_remote_mappings,
-                    **kwargs,
-                )
-
-        return RelativeVJSONEncoder
-
-
-def load(source: Path, location: Path = None, **kwargs) -> MutableMapping:
+def load(source: Path, **kwargs) -> MutableMapping:
     """Load the object stored at `source` using a VJSONDecoder."""
     with open(source, "r") as f:
-        return json.load(f, cls=VJSONDecoder.make_decoder(location), **kwargs)
+        return json.load(f, cls=VJSONDecoder, **kwargs)
 
 
-def loads(s: str, location: Path = None, **kwargs) -> MutableMapping:
+def loads(s: str, **kwargs) -> MutableMapping:
     """Load the given VJSON-formatted string into a dict."""
-    return json.loads(s, cls=VJSONDecoder.make_decoder(location), **kwargs)
+    return json.loads(s, cls=VJSONDecoder, **kwargs)
 
 
 def dump(
@@ -351,12 +317,11 @@ def dump(
         json.dump(
             obj,
             f,
-            cls=VJSONEncoder.make_encoder(
-                location,
-                write_remote_mappings=write_remote_mappings,
-                expand_remote_mappings=expand_remote_mappings,
-            ),
+            cls=VJSONEncoder,
             indent=indent,
+            location=location,
+            write_remote_mappings=write_remote_mappings,
+            expand_remote_mappings=expand_remote_mappings,
             **kwargs,
         )
         if write_trailing_newline:
@@ -366,6 +331,7 @@ def dump(
 def dumps(
     obj: "MutableMapping[str, VJSON_T]",
     location: Path = None,
+    write_remote_mappings: bool = True,
     expand_remote_mappings: bool = False,
     indent: Optional[int] = 4,
     **kwargs,
@@ -373,12 +339,11 @@ def dumps(
     """Dump the given object as a VJSON-formatted string."""
     return json.dumps(
         obj,
-        cls=VJSONEncoder.make_encoder(
-            location,
-            write_remote_mappings=False,
-            expand_remote_mappings=expand_remote_mappings,
-        ),
+        cls=VJSONEncoder,
         indent=indent,
+        location=location,
+        write_remote_mappings=write_remote_mappings,
+        expand_remote_mappings=expand_remote_mappings,
         **kwargs,
     )
 
@@ -440,7 +405,7 @@ class VJSONSerializableMixin:
     @classmethod
     def load(cls, from_: Path) -> "VJSONSerializableMixin":
         """Load the object in the vjson file at the given path."""
-        return load(from_, from_.parent)
+        return load(source=from_, location=from_.parent)
 
 
 VJSON_T = Union[JSON_T, RemoteMapping, VJSONSerializableMixin]
