@@ -1,6 +1,6 @@
 """A custom JSON decoder and associated utilities."""
 
-from abc import abstractclassmethod, abstractmethod
+from abc import ABC, abstractclassmethod, abstractmethod
 import json
 from json import JSONDecoder, JSONEncoder
 from collections import MutableMapping
@@ -54,31 +54,28 @@ def escape(value: JSON_T = None) -> JSON_T:
 
 
 def format_unset(default: JSON_T = NOTHING, max_default_len=35) -> str:
-    """Return '$-', optionally with a parenthesized default value added after a space."""
+    """Return '$#', optionally with a parenthesized default value added after a space."""
     if default is not NOTHING:
         default = brief(repr(default), max_len=max_default_len)
-        return f"$- ({default})"
-    return f"$-"
+        return f"$# ({default})"
+    return f"$#"
 
 
-class RemoteMapping(WrappedDict):
-    """A dict-like type which keeps track of a `Path` to which it should be serialized.
-
-    The path can be relative or absolute--it just needs to be kept as one or the other.
-    """
-
+class RemoteReferenceMixin(ABC):
     def __init__(self, target: Path, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.target = target
 
     @property
-    def remote_reference(self) -> str:
+    def reference_str(self) -> str:
+        """The absolute or relative control sequence string used to reference the object."""
         if self.target.is_absolute():
             return f"{MARKER}/{self.target}"
         return f"{MARKER}./{self.target}"
 
-    def expand(self) -> dict:
-        return self._dict
+    @abstractmethod
+    def expand(self) -> JSON_T:
+        """Return the referenced data."""
 
     def write(
         self,
@@ -95,9 +92,15 @@ class RemoteMapping(WrappedDict):
             target = location / target
         target.parent.mkdir(exist_ok=True, parents=True)
         with open(target, "w") as f:
-            json.dump(self._dict, f, cls=serializer, indent=4)
+            json.dump(self.expand(), f, cls=serializer, indent=4)
             if write_trailing_newline:
                 f.write("\n")
+
+class RemoteMapping(WrappedDict, RemoteReferenceMixin):
+    """A dict-like reference to a JSON mapping (object) stored in another file."""
+
+    def expand(self) -> dict:
+        return self._dict
 
 
 def expand_mappings(mapping: MutableMapping) -> dict:
@@ -121,7 +124,7 @@ class VJSONDecoder(JSONDecoder):
     `$.`: Denotes the beginning of a relative path to anothor .json or .v.json spec whose contents are to be substituted
           in its place. Valid only as a value.
     `$/`: Similar to above, but with an absolute path. Valid only as a value.
-    `$-`: When given as a value, optionally followed by any sequence of characters (which is ignored), signifies that
+    `$#`: When given as a value, optionally followed by any sequence of characters (which is ignored), signifies that
           a keypair should be entirely ignored by the decoder.
     `$t`: Specifies the unique type-identifier of a registered VJSON type to which the containing object should
           be deserialized.
@@ -144,7 +147,7 @@ class VJSONDecoder(JSONDecoder):
             MARKER * 2: self.expand_escaped,
             f"{MARKER}.": self.expand_relative,
             f"{MARKER}/": self.expand_absolute,
-            f"{MARKER}-": self.expand_default,
+            f"{MARKER}#": self.expand_default,
             f"{MARKER}t": self.expand_custom_type,
         }  # Stands for "control sequence mapping".
 
@@ -164,8 +167,8 @@ class VJSONDecoder(JSONDecoder):
 
     def expand_default(self, value: JSON_T, key: KEY_T = NOTHING) -> IGNORE_T:
         """Return `IGNORE`."""
-        assert key is NOTHING, "'$-' cannot be expanded in a key."
-        assert value.startswith(f"{MARKER}-")
+        assert key is NOTHING, "'$#' cannot be expanded in a key."
+        assert value.startswith(f"{MARKER}#")
         return IGNORE
 
     def expand_escaped(
@@ -202,17 +205,12 @@ class VJSONDecoder(JSONDecoder):
     ) -> RemoteMapping:
         """Load the path given in `value` relative to `location`. The path cannot be in the key.
 
-        It is an error to set `key`. The file pointed to at `location / value` is assumed to be
+        It is an error to set `key`. The file pointed to at by the value is assumed to be
         a .v.json-formatted text file.
         """
-        assert key is NOTHING, "Relative path references are not supported in keys."
+        assert key is NOTHING, "Path references are not supported in keys."
         relpath = value[3:]
-        path = location / relpath
-        data = dict()
-        if path.exists():
-            with open(location / path, "r") as f:
-                data = json.load(f, cls=type(self))
-        return RemoteMapping(Path(relpath), **data)
+        return self.expand_absolute(value=f"$/{location / relpath}", key=key)
 
     def expand(self, pair: "tuple[str, JSON_T]") -> "tuple[str, JSON_T]":
         """Expand the (key, value) pair as appropriate.
@@ -273,12 +271,12 @@ class VJSONEncoder(JSONEncoder):
         self.expand_remote_mappings = expand_remote_mappings
 
     def default(self, o: "VJSON_T") -> JSON_T:
-        if isinstance(o, RemoteMapping):
+        if isinstance(o, RemoteReferenceMixin):
             if self.write_remote_mappings:
                 o.write(type(self), self.location)
             if self.expand_remote_mappings:
                 return o.expand()
-            return o.remote_reference
+            return o.reference_str
         if isinstance(o, VJSONSerializableMixin):
             return o.to_object()
         return super().default(o)
@@ -389,7 +387,6 @@ class VJSONSerializableMixin:
         type_id = getattr(cls, "type_id", None)
         if type_id is not None:
             VJSONSerializableMixin.named_types[type_id] = cls
-            cls.type_id = type_id
         return super().__init_subclass__(**kwargs)
 
     @abstractmethod
