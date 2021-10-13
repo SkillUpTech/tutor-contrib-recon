@@ -363,6 +363,10 @@ class VJSONSerializableMixin:
 
     named_types = dict()
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._target = None
+
     def __init_subclass__(cls, **kwargs) -> None:
         type_id = getattr(cls, "type_id", None)
         if type_id is not None:
@@ -371,17 +375,31 @@ class VJSONSerializableMixin:
 
     @abstractmethod
     def to_object(self) -> "dict[str, VJSON_T]":
-        """Return a VJSON-friendly representation of this object as a dict.
+        """Return a dictionary representation of this object.
 
-        Implementations should generally start by calling `super().to_object()` and then
-        updating the resulting dictionary with their serializable data. This way,
-        type information added by the VJSONSerializableMixin is preserved.
+        The attributes of this dictionary must constitute the complete set of constructor
+        keyword parameters needed to recreate this instance (this mixin could be refactored
+        to i.e. inherit from `dataclass.dataclass` in the future).
+
+        Implementations must start by calling `super().to_object()` and then
+        update the resulting dictionary with their serializable data. This way,
+        special attributes added by `VJSONSerializableMixin` is preserved, and the
+        type of mapping to use (`RemoteMapping` or `dict`) can be determined dynamically.
         """
-        return {f"{MARKER}t": self.type_id}
+        if self._target is not None:
+            mapping = RemoteMapping(target=self._target)
+        else:
+            mapping = dict()
+        mapping.update({f"{MARKER}t": self.type_id})
+        return mapping
 
-    @abstractclassmethod
+    @classmethod
     def from_object(cls, obj: "dict[str, VJSON_T]") -> "VJSONSerializableMixin":
         """Deserialize the given object and return the new instance of this type."""
+        instance = cls(**obj)
+        if isinstance(obj, RemoteMapping):
+            instance._target = obj.target
+        return instance
 
     @classmethod
     def by_type_id(cls, type_id: str) -> "VJSONSerializableMixin":
