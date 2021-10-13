@@ -23,7 +23,7 @@ class OverrideSequence(OverrideMixin):
 
     @classmethod
     def default(cls, recon_root: Path) -> "OverrideSequence":
-        return vjson.loads(DEFAULT_OVERRIDE_SEQUENCE, recon_root)
+        return vjson.loads(DEFAULT_OVERRIDE_SEQUENCE, location=recon_root)
 
     def to_object(self) -> "dict[str, vjson.VJSON_T]":
         ret = super().to_object()
