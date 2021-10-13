@@ -4,7 +4,7 @@ from abc import ABC, abstractclassmethod, abstractmethod
 import json
 from json import JSONDecoder, JSONEncoder
 from collections import MutableMapping
-from typing import Literal, Optional, Union
+from typing import Literal, Optional, Type, Union
 from pathlib import Path
 from copy import copy
 
@@ -128,7 +128,7 @@ class VJSONDecoder(JSONDecoder):
 
     `$$`: A single `$` character. Valid as either a key or value.
     `$.`: Denotes the beginning of a relative path to anothor .json or .v.json spec whose contents are to be substituted
-          in its place. Valid only as a value.
+          in its place. The spec must have a single object at its root. Valid only as a value.
     `$/`: Similar to above, but with an absolute path. Valid only as a value.
     `$#`: When given as a value, optionally followed by any sequence of characters (which is ignored), signifies that
           a keypair should be entirely ignored by the decoder.
@@ -193,18 +193,35 @@ class VJSONDecoder(JSONDecoder):
             return value[1:]
         return key[1:], value
 
+    def load_custom_or_remote(self, path: Path) -> "VJSON_T":
+        """Load the file at `path` as either a custom object or a `RemoteMapping`.
+
+        If the file doesn't exist, it is created and initialized with an empty
+        object.
+
+        The file must contain a single JSON object.
+        """
+        if not path.exists():
+            with open(path, "w") as f:
+                json.dump(dict(), fp=f)
+            return RemoteMapping(target=path)
+        with open(path, "r") as f:
+            data = json.load(f, cls=type(self), **self.params())
+        if isinstance(data, VJSONSerializableMixin):
+            return data
+        return RemoteMapping(target=path, **data)
+
     def expand_absolute(self, value: str, key: KEY_T = NOTHING) -> RemoteMapping:
         """Load the absolute path given in `value`. The path cannot be in the key.
 
-        It is an error to set `key`. The file pointed to at `value` is assumed to be a
-        .v.json-formatted text file.
+        If the file doesn't exist, it is created and initialized with an empty object.
+
+        It is an error to set `key`. The file pointed to at `value` is must contain
+        a single JSON object.
         """
         assert key is NOTHING, "Absolute path references are not supported in keys."
         path = Path(value[2:])
-        with open(path, "r") as f:
-            return RemoteMapping(
-                target=path, **json.load(f, cls=type(self), **self.params())
-            )
+        return self.load_custom_or_remote(path)
 
     def expand_relative(self, value: str, key: KEY_T = NOTHING) -> RemoteMapping:
         f"""Load the given relative `path`."""
@@ -218,14 +235,14 @@ class VJSONDecoder(JSONDecoder):
     ) -> RemoteMapping:
         """Load the path given in `value` relative to `location`. The path cannot be in the key.
 
+        If the file doesn't exist, it is created and initialized with an empty object.
+
         It is an error to set `key`. The file pointed to by the value must contain a JSON object.
         """
         assert key is NOTHING, "Relative path references are not supported in keys."
         relpath = value[3:]
         path = location / relpath
-        with open(path, "r") as f:
-            data = json.load(f, cls=type(self), **self.params())
-        return RemoteMapping(target=path, **data)
+        return self.load_custom_or_remote(path)
 
     def expand(self, pair: "tuple[str, JSON_T]") -> "tuple[str, JSON_T]":
         """Expand the (key, value) pair as appropriate.
