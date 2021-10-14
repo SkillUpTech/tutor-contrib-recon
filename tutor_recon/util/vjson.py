@@ -94,7 +94,7 @@ class RemoteReferenceMixin(ABC):
             target = location / target
         target.parent.mkdir(exist_ok=True, parents=True)
         with open(target, "w") as f:
-            json.dump(self.expand(), f, cls=serializer, **kwargs)
+            json.dump(self.expand(), f, cls=serializer, location=location, **kwargs)
             if write_trailing_newline:
                 f.write("\n")
 
@@ -207,7 +207,7 @@ class VJSONDecoder(JSONDecoder):
                 json.dump(dict(), fp=f)
             return RemoteMapping(target=path)
         with open(path, "r") as f:
-            data = json.load(f, cls=type(self), **self.params())
+            data = json.load(f, cls=type(self), location=path.parent, **self.params())
         if isinstance(data, VJSONSerializableMixin):
             return data
         return RemoteMapping(target=path, **data)
@@ -309,10 +309,12 @@ class VJSONEncoder(JSONEncoder):
         return super().default(o)
 
 
-def load(source: Path, **kwargs) -> MutableMapping:
+def load(source: Path, location: Path = None, **kwargs) -> MutableMapping:
     """Load the object stored at `source` using a VJSONDecoder."""
+    if location is None:
+        location = source.parent
     with open(source, "r") as f:
-        return json.load(f, cls=VJSONDecoder, **kwargs)
+        return json.load(f, cls=VJSONDecoder, location=location, **kwargs)
 
 
 def loads(s: str, **kwargs) -> MutableMapping:
@@ -331,6 +333,8 @@ def dump(
     **kwargs,
 ) -> None:
     """Dump the given object into the file specified by `dest` using a VJSONEncoder."""
+    if location is None:
+        location = dest.parent
     with open(dest, "w") as f:
         json.dump(
             obj,
