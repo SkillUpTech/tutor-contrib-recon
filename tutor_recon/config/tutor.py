@@ -3,7 +3,6 @@
 import pkg_resources
 from pathlib import Path
 
-import tutor
 from tutor.config import load_no_check, save_config_file, merge
 from tutor.config import load_all as tutor_load_all
 from tutor.env import Renderer
