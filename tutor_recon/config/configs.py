@@ -4,7 +4,7 @@ import json
 from abc import abstractmethod
 from pathlib import Path
 
-from tutor_recon.util.misc import (
+from tutor_recon.util.vjson.util import (
     recursive_update,
     set_nested,
     walk_dict,

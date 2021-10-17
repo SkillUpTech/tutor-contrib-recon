@@ -2,7 +2,7 @@
 
 from pathlib import Path
 from tutor_recon.config.override_sequence import OverrideSequence
-from tutor_recon.config.reference import OverrideReference
+from tutor_recon.config.override_reference import OverrideReference
 from tutor_recon.config.templates import TemplateOverride
 
 import click
@@ -36,6 +36,7 @@ def run_tutor_config_save(context: cloup.Context) -> None:
 )
 def recon():
     pass
+
 
 
 @recon.command(help="Initialize recon.")
@@ -107,11 +108,12 @@ def replace_template(context: cloup.Context, path: str):
 
 
 @recon.command(help="Print the current recon configuration as JSON.")
+@cloup.option("--expand/--no-expand", is_flag=True, default=True, help="Expand references to files ('$.' and '$/').")
 @cloup.pass_context
-def list(context: cloup.Context):
+def list(context: cloup.Context, expand: bool):
     _, recon_root = root_dirs(context)
     main = main_config(recon_root)
-    config_str = vjson.dumps(main, expand_remote_mappings=True)
+    config_str = vjson.dumps(main, expand_remote_mappings=expand, location=recon_root)
     print(config_str)
 
 
