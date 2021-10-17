@@ -39,7 +39,7 @@ class VJSONEncoder(JSONEncoder):
         self.expand_remote_mappings = expand_remote_mappings
         self.prefer_relative_references = prefer_relative_references
         self.location = location
-        kwargs.pop('location', None)
+        kwargs.pop("location", None)
         self._params = kwargs.copy()
         super().__init__(**kwargs)
 

@@ -14,15 +14,17 @@ class RemoteReferenceMixin(ABC):
         super().__init__(**kwargs)
         self.target = target
 
-    def reference_str(self, make_relative_to: Optional[Path] = None, safe: bool = False) -> str:
+    def reference_str(
+        self, make_relative_to: Optional[Path] = None, safe: bool = False
+    ) -> str:
         """The absolute or relative control sequence string used to reference the object.
-        
+
         Keyword Arguments:
             make_relative_to: If set to a Path, absolute references will be converted to relative
                 references with respect to the given path. Defaults to `None` (no conversion).
             safe: Use the absolute path instead if `make_relative_to` is not a parent of this
                 `RemoteReference`'s target.
-        
+
         Raises:
             ValueError: if the target of this mapping is not a subpath of `make_relative_to` and
                 `safe=True` is not provided.
