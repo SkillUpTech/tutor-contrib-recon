@@ -8,7 +8,7 @@ from tutor_recon.config.override import (
 
 
 class OverrideReference(OverrideMixin):
-    type_id = "reference"
+    type_id = "override-reference"
 
     def __init__(self, override: OverrideMixin, **kwargs) -> None:
         super().__init__(**kwargs)

@@ -2,7 +2,7 @@
 
 from pathlib import Path
 from tutor_recon.config.override_sequence import OverrideSequence
-from tutor_recon.config.reference import OverrideReference
+from tutor_recon.config.override_reference import OverrideReference
 from tutor_recon.config.templates import TemplateOverride
 
 import click
