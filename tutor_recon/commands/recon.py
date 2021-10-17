@@ -38,6 +38,7 @@ def recon():
     pass
 
 
+
 @recon.command(help="Initialize recon.")
 @cloup.option(
     "--env-dir",
@@ -107,7 +108,7 @@ def replace_template(context: cloup.Context, path: str):
 
 
 @recon.command(help="Print the current recon configuration as JSON.")
-@cloup.option("--expand/--no-expand", is_flag=True, default=True, help="Expand references to other settings.")
+@cloup.option("--expand/--no-expand", is_flag=True, default=True, help="Expand references to files ('$.' and '$/').")
 @cloup.pass_context
 def list(context: cloup.Context, expand: bool):
     _, recon_root = root_dirs(context)
