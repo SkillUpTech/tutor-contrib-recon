@@ -118,11 +118,15 @@ def handle_release_and_tag(opts: "dict[str, Any]") -> None:
     bump, tag, push_tag, tag_message = map(
         opts.pop, ("bump", "tag", "push_tag", "tag_message")
     )
+    current_version = get_version()
     if bump:
         bump_version(bump)
+        current_version = get_version()
         git_add(["pyproject.toml"])
-        git_commit(f"[dev bot] Bump to {get_version()}.")
+        git_commit(f"[dev bot] Bump to v{current_version}.")
     if tag:
+        if not tag_message:
+            tag_message = f"tutor-contrib-recon v{current_version}"
         new_tag = git_tag(tag_message)
         if push_tag:
             git_push(new_tag)
@@ -407,7 +411,7 @@ def merge_feature_to_dev():
     git_add(["."])
     git_commit(f"Squash and merge {feature_branch} into dev.")
     emit(f"Created commit.")
-    push_cmd = click.style(f"git push", fg="yellow")
+    push_cmd = click.style("git push", fg="yellow")
     delete_cmd = click.style(f"git branch -d {feature_branch}", fg="yellow")
     emit(
         f"Congratulations! You're almost ready to create a PR from {DEV_BRANCH} into {MAIN_BRANCH}."
