@@ -49,6 +49,7 @@ class VJSONDecoder(JSONDecoder):
     def __init__(self, location: Optional[Path] = None, **kwargs) -> None:
         super().__init__(object_hook=self.object_hook, **kwargs)
         self.location = location
+        kwargs.pop('location', None)
         self._params = kwargs.copy()
         self._csm = {
             MARKER * 2: self.expand_escaped,

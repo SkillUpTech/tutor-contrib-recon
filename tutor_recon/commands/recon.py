@@ -107,11 +107,12 @@ def replace_template(context: cloup.Context, path: str):
 
 
 @recon.command(help="Print the current recon configuration as JSON.")
+@cloup.option("--expand/--no-expand", is_flag=True, default=True, help="Expand references to other settings.")
 @cloup.pass_context
-def list(context: cloup.Context):
+def list(context: cloup.Context, expand: bool):
     _, recon_root = root_dirs(context)
     main = main_config(recon_root)
-    config_str = vjson.dumps(main, expand_remote_mappings=True)
+    config_str = vjson.dumps(main, expand_remote_mappings=expand, location=recon_root)
     print(config_str)
 
 

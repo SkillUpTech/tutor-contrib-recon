@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import json
 from json import JSONEncoder
+import os
 from pathlib import Path
 from typing import MutableMapping, Optional
 
@@ -13,12 +14,39 @@ class RemoteReferenceMixin(ABC):
         super().__init__(**kwargs)
         self.target = target
 
-    @property
-    def reference_str(self) -> str:
-        """The absolute or relative control sequence string used to reference the object."""
+    def reference_str(self, make_relative_to: Optional[Path] = None, safe: bool = False) -> str:
+        """The absolute or relative control sequence string used to reference the object.
+        
+        Keyword Arguments:
+            make_relative_to: If set to a Path, absolute references will be converted to relative
+                references with respect to the given path. Defaults to `None` (no conversion).
+            safe: Use the absolute path instead if `make_relative_to` is not a parent of this
+                `RemoteReference`'s target.
+        
+        Raises:
+            ValueError: if the target of this mapping is not a subpath of `make_relative_to` and
+                `safe=True` is not provided.
+        """
         if self.target.is_absolute():
-            return f"{MARKER}/{self.target}"
-        return f"{MARKER}./{self.target}"
+            if make_relative_to is not None:
+                try:
+                    return self._target_relative(make_relative_to)
+                except ValueError:
+                    if safe:
+                        return self._target_absolute()
+                    raise
+            return self._target_absolute()
+        return self._target_relative()
+
+    def _target_relative(self, to: Path = None) -> str:
+        if to is not None:
+            return f"{MARKER}.{os.sep}{self.target.relative_to(to)}"
+        return f"{MARKER}.{os.sep}{self.target}"
+
+    def _target_absolute(self) -> str:
+        # Note that this "/" must be hardcoded.
+        # "$/" is the control sequence, not part of the path.
+        return f"{MARKER}/{self.target}"
 
     @abstractmethod
     def expand(self) -> JSON_T:
