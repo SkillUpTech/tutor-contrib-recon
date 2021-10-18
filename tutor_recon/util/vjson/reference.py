@@ -1,7 +1,6 @@
 from abc import ABC, abstractmethod
 import json
 from json import JSONEncoder
-import os
 from pathlib import Path
 from typing import MutableMapping, Optional
 
@@ -27,7 +26,7 @@ class RemoteReferenceMixin(ABC):
 
         Raises:
             ValueError: if the target of this mapping is not a subpath of `make_relative_to` and
-                `safe=True` is not provided.
+                `safe=True` was not provided to the constructor.
         """
         if self.target.is_absolute():
             if make_relative_to is not None:
@@ -42,13 +41,11 @@ class RemoteReferenceMixin(ABC):
 
     def _target_relative(self, to: Path = None) -> str:
         if to is not None:
-            return f"{MARKER}.{os.sep}{self.target.relative_to(to)}"
-        return f"{MARKER}.{os.sep}{self.target}"
+            return f"{MARKER}+{self.target.relative_to(to)}"
+        return f"{MARKER}+{self.target}"
 
     def _target_absolute(self) -> str:
-        # Note that this "/" must be hardcoded.
-        # "$/" is the control sequence, not part of the path.
-        return f"{MARKER}/{self.target}"
+        return f"{MARKER}+{self.target}"
 
     @abstractmethod
     def expand(self) -> JSON_T:
@@ -61,7 +58,7 @@ class RemoteReferenceMixin(ABC):
         write_trailing_newline: bool = True,
         **kwargs,
     ) -> None:
-        """Serialize the contents of this mapping to its target."""
+        """Serialize the contents of this reference into its target file."""
         target = self.target
         if not target.is_absolute():
             assert (
@@ -85,11 +82,11 @@ class RemoteMapping(RemoteReferenceMixin, WrappedDict):
         return self._dict
 
 
-def expand_mappings(mapping: MutableMapping) -> dict:
-    """Recursively expand any remote mappings within `mapping`."""
+def expand_references(mapping: MutableMapping) -> dict:
+    """Recursively expand any remote references within `mapping`."""
     ret = dict()
     for keys, val in walk_dict(mapping):
-        if isinstance(val, RemoteMapping):
+        if isinstance(val, RemoteReferenceMixin):
             set_nested(ret, keys, val.expand())
         else:
             set_nested(ret, keys, val)

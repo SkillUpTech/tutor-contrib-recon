@@ -76,7 +76,7 @@ class TutorOverrideConfig(OverrideConfig):
         return get_complete(tutor_root).copy()
 
     def update_env(self, tutor_root: Path, override_settings: dict) -> None:
-        update_config(tutor_root, settings=vjson.expand_mappings(override_settings))
+        update_config(tutor_root, settings=vjson.expand_references(override_settings))
 
 
 class JSONOverrideConfig(OverrideConfig):
