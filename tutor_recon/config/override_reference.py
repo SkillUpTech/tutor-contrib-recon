@@ -22,5 +22,5 @@ class OverrideReference(OverrideMixin):
     def scaffold(self, tutor_root: Path, recon_root: Path) -> None:
         self.referenced_override.scaffold(tutor_root, recon_root)
 
-    def referenced_override(self, tutor_root: Path, recon_root: Path) -> None:
+    def override(self, tutor_root: Path, recon_root: Path) -> None:
         self.referenced_override.override(tutor_root, recon_root)

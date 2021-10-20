@@ -1,11 +1,11 @@
 """Mixin for objects which can apply overrides to the Tutor environment."""
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from pathlib import Path
 
 from tutor_recon.util import vjson
 
 
-class OverrideMixin(vjson.VJSONSerializableMixin):
+class OverrideMixin(vjson.VJSONSerializableMixin, ABC):
     def __init__(self, **kwargs) -> None:
         super().__init__(**kwargs)
 

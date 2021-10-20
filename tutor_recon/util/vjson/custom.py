@@ -1,6 +1,6 @@
 """Tools for creating custom (de)serializable types."""
 
-from abc import abstractmethod
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Union, TYPE_CHECKING
 
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from .functions import dump, load
 
 
-class VJSONSerializableMixin:
+class VJSONSerializableMixin(ABC):
     """Mixin for types which define `to_object` and `from_object` methods.
 
     When subclassing, the `type_id` class attribute may be provided as
