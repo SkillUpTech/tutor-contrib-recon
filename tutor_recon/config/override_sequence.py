@@ -45,3 +45,9 @@ class OverrideSequence(OverrideMixin):
         """Call `override()` on all configs."""
         for config in self.overrides:
             config.override(tutor_root, recon_root)
+
+
+class OverrideModule(OverrideSequence):
+    """A namespaced OverrideSequence."""
+
+    type_id = "module"

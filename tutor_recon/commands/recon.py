@@ -1,28 +1,35 @@
 """The Recon CLI definitions."""
 
+import json
 from pathlib import Path
-from tutor_recon.config.override_sequence import OverrideSequence
-from tutor_recon.config.override_reference import OverrideReference
-from tutor_recon.config.templates import TemplateOverride
+from uuid import uuid4
 
 import click
 import cloup
 
-from tutor_recon.config.main import (
-    main_config,
-    override_all,
-    scaffold_all,
-)
-from tutor_recon.util.cli import emit
-from tutor_recon.util.paths import overrides_path, root_dirs
-from tutor_recon.util import vjson
+
 from tutor_recon.commands.tutor import tutor_config_save
+from tutor_recon.config.main import main_config, override_all, scaffold_all
+from tutor_recon.config.override_reference import OverrideReference
+from tutor_recon.config.override_sequence import OverrideModule
+from tutor_recon.config.templates import TemplateOverride
+from tutor_recon.util import vjson
+from tutor_recon.util.cli import emit
 from tutor_recon.util.constants import (
     CONFIG_SAVE_STYLED,
     CONTEXT_SETTINGS,
     PROGRAM_DESCRIPTION,
     RECON_SAVE_STYLED,
 )
+from tutor_recon.util.module import (
+    clone_repo,
+    init_repo,
+    load_info,
+    pull_repo,
+    abort_if_exists,
+)
+from tutor_recon.util.paths import overrides_path, root_dirs
+from tutor_recon.util.vjson.reference import RemoteMapping
 
 
 def run_tutor_config_save(context: cloup.Context) -> None:
@@ -111,7 +118,7 @@ def replace_template(context: cloup.Context, path: str):
     "--expand/--no-expand",
     is_flag=True,
     default=True,
-    help="Expand references to files ('$.' and '$/').",
+    help="Expand references to files ('$+').",
 )
 @cloup.pass_context
 def list(context: cloup.Context, expand: bool):
@@ -122,15 +129,83 @@ def list(context: cloup.Context, expand: bool):
 
 
 @recon.command(help="Create a new override module with the given name.")
+@cloup.option(
+    "--git-url",
+    metavar="URL",
+    default=None,
+    help="The URL to a git repository where you plan to host this module.",
+)
+@cloup.option(
+    "--initialize-repo/--no-initialize-repo",
+    is_flag=True,
+    default=True,
+    help="Create/don't create a git repository. If --git-url is provided, set origin to the URL.",
+)
+@cloup.option(
+    "--push/--no-push",
+    is_flag=True,
+    default=True,
+    help="Push the initialized repository to origin if applicable.",
+)
 @cloup.argument("name", metavar="MODULE_NAME")
 @cloup.pass_context
-def new_module(context: cloup.Context, name: str):
+def new_module(
+    context: cloup.Context, name: str, git_url: str, initialize_repo: bool, push: bool
+):
     tutor_root, recon_root = root_dirs(context)
-    target = Path("modules") / f"{name}.v.json"
+    module_root = Path("modules") / name
+    target = module_root / "module.v.json"
     main = main_config(recon_root)
-    sequence = OverrideSequence.from_object(vjson.RemoteMapping(target=target))
-    reference = OverrideReference(sequence)
+    module = OverrideModule.from_object(
+        vjson.RemoteMapping(
+            target=target,
+            name=name,
+            path=None,
+            info=RemoteMapping(target="module-info.json", version="0.0.0", name=name),
+        )
+    )
+    reference = OverrideReference(module)
     main.add_override(reference)
     reference.scaffold(tutor_root, recon_root)
     main.save(recon_root / "main.v.json")
+    if initialize_repo:
+        init_repo(name=name, url=git_url, push=push)
     emit(f"Created new override module at {target} 👍")
+
+
+@recon.command(help="Clone a remote override module.")
+@cloup.argument("url")
+@cloup.pass_context
+def add_module(context: cloup.Context, url: str):
+    _, recon_root = root_dirs(context)
+    modules_root = recon_root / "modules"
+    repo_name = uuid4()
+    clone_repo(name=repo_name, url=url, to=modules_root)
+    module_root = modules_root / repo_name
+    module_info = load_info(module_path=module_root / repo_name)
+    module_name = module_info["name"]
+    abort_if_exists(module_name=module_name)
+    module_root.rename("module_name")
+    emit(f"Cloned module to {click.style(module_root, fg='yellow')}.")
+    module = vjson.load(module_root / "module.v.json", location=module_root)
+    reference = OverrideReference(module)
+    main = main_config(recon_root)
+    main.add_override(reference)
+    main.save(recon_root / "main.v.json")
+    emit(f"Successfully applied {module_name} 👍")
+
+
+@recon.command(help="Update an installed override module.")
+@cloup.argument("name")
+@cloup.pass_context
+def update_module(context: cloup.Context, name: str):
+    _, recon_root = root_dirs(context)
+    module_path = recon_root / "modules" / name
+    prev_info = load_info(module_path=module_path)
+    pull_repo(loc=module_path)
+    new_info = load_info(module_path=module_path)
+    main = main_config(recon_root)
+    main.save(recon_root / "main.v.json")
+    emit(
+        f"Updated {click.style(name, 'magenta')} from {prev_info['version']} to {new_info['version']}."
+    )
