@@ -12,8 +12,15 @@ class TemplateOverride(OverrideMixin):
 
     def __init__(self, src: vjson.VJSON_T, dest: Path, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.src = src
+        self._src = src
+        self._effective_src = None
         self.dest = dest
+
+    @property
+    def src(self) -> str:
+        if self._effective_src is None:
+            return self._src
+        return self._effective_src
 
     def override(self, tutor_root: Path, recon_root: Path) -> None:
         """Render the template to the tutor environment."""
@@ -29,7 +36,7 @@ class TemplateOverride(OverrideMixin):
         recon_template_path = recon_root / self.src
         if recon_template_path.exists():
             return
-        tutor_template_path = template_source(Path(self.src).relative_to("templates"))
+        tutor_template_path = template_source(Path(self._src).relative_to("templates"))
         with open(tutor_template_path, "r") as f:
             original_template = f.read()
         recon_template_path.parent.mkdir(exist_ok=True, parents=True)
@@ -40,7 +47,7 @@ class TemplateOverride(OverrideMixin):
         obj = super().to_object()
         obj.update(
             {
-                "src": self.src,
+                "src": self._src,
                 "dest": self.dest,
             }
         )
@@ -54,3 +61,9 @@ class TemplateOverride(OverrideMixin):
             dest=str(Path("env") / template_relpath),
         )
         return instance
+
+    def load_module_hook(
+        self, module_root: Path, module_id: str, tutor_root: Path, recon_root: Path
+    ) -> None:
+        src_prefix = module_root.relative_to(recon_root)
+        self._effective_src = src_prefix / self._src

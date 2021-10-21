@@ -1,7 +1,7 @@
 """The OverrideSequence container class definition."""
 
 from pathlib import Path
-from typing import Optional
+from typing import MutableMapping, Optional
 
 from tutor_recon.util import vjson
 from tutor_recon.config.override import (
@@ -27,11 +27,7 @@ class OverrideSequence(OverrideMixin):
 
     def to_object(self) -> "dict[str, vjson.VJSON_T]":
         ret = super().to_object()
-        ret.update(
-            {
-                "overrides": [override.to_object() for override in self.overrides],
-            }
-        )
+        ret["overrides"] = [override.to_object() for override in self.overrides]
         return ret
 
     def scaffold(self, tutor_root: Path, recon_root: Path) -> None:
@@ -42,12 +38,6 @@ class OverrideSequence(OverrideMixin):
         self.overrides.append(override)
 
     def override(self, tutor_root: Path, recon_root: Path) -> None:
-        """Call `override()` on all configs."""
+        """Call `override()` on all overrides."""
         for config in self.overrides:
             config.override(tutor_root, recon_root)
-
-
-class OverrideModule(OverrideSequence):
-    """A namespaced OverrideSequence."""
-
-    type_id = "module"

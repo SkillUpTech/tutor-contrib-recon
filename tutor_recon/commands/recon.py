@@ -11,7 +11,7 @@ import cloup
 from tutor_recon.commands.tutor import tutor_config_save
 from tutor_recon.config.main import main_config, override_all, scaffold_all
 from tutor_recon.config.override_reference import OverrideReference
-from tutor_recon.config.override_sequence import OverrideModule
+from tutor_recon.config.override_module import OverrideModule
 from tutor_recon.config.templates import TemplateOverride
 from tutor_recon.util import vjson
 from tutor_recon.util.cli import emit
@@ -153,14 +153,13 @@ def new_module(
     context: cloup.Context, name: str, git_url: str, initialize_repo: bool, push: bool
 ):
     tutor_root, recon_root = root_dirs(context)
+    modules_root = recon_root / Path("modules")
     module_root = Path("modules") / name
     target = module_root / "module.v.json"
     main = main_config(recon_root)
     module = OverrideModule.from_object(
         vjson.RemoteMapping(
             target=target,
-            name=name,
-            path=None,
             info=RemoteMapping(target="module-info.json", version="0.0.0", name=name),
         )
     )
@@ -169,7 +168,7 @@ def new_module(
     reference.scaffold(tutor_root, recon_root)
     main.save(recon_root / "main.v.json")
     if initialize_repo:
-        init_repo(name=name, url=git_url, push=push)
+        init_repo(parent_dir=modules_root, name=name, url=git_url, push=push)
     emit(f"Created new override module at {target} 👍")
 
 
@@ -184,7 +183,7 @@ def add_module(context: cloup.Context, url: str):
     module_root = modules_root / repo_name
     module_info = load_info(module_path=module_root / repo_name)
     module_name = module_info["name"]
-    abort_if_exists(module_name=module_name)
+    abort_if_exists(modules_root=modules_root, module_name=module_name)
     module_root.rename("module_name")
     emit(f"Cloned module to {click.style(module_root, fg='yellow')}.")
     module = vjson.load(module_root / "module.v.json", location=module_root)
