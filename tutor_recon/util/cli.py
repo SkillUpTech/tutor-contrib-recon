@@ -25,13 +25,13 @@ def emit(
 
 def emit_warning(message: str, nl: bool = True) -> None:
     """Warn the user about something."""
-    return emit(message=message, nl=nl, err=True, color="yellow")
+    return emit(message=f"WARNING: {message}", nl=nl, err=True, color="yellow")
 
 
 def emit_critical(
     message: str, exit: bool = False, nl: bool = True, exit_code: int = 1
 ) -> None:
     """Show a serious error message and optionally exit."""
-    emit(message=message, nl=nl, color="red", err=True)
+    emit(message=f"ERROR: {message}", nl=nl, color="red", err=True)
     if exit:
         raise SystemExit(code=exit_code)

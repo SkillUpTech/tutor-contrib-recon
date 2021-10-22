@@ -1,6 +1,5 @@
 """The Recon CLI definitions."""
 
-import json
 from pathlib import Path
 from uuid import uuid4
 
@@ -160,7 +159,8 @@ def new_module(
     module = OverrideModule.from_object(
         vjson.RemoteMapping(
             target=target,
-            info=RemoteMapping(target="module-info.json", version="0.0.0", name=name),
+            overrides=[],
+            info=RemoteMapping(target=Path("module-info.json"), version="0.0.0", name=name),
         )
     )
     reference = OverrideReference(module)
