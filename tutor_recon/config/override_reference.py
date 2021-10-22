@@ -1,7 +1,6 @@
 """Override type which holds a reference to an OverrideSequence."""
 
 from pathlib import Path
-from tutor_recon.util import vjson
 from tutor_recon.config.override import (
     OverrideMixin,
 )
@@ -13,6 +12,10 @@ class OverrideReference(OverrideMixin):
     def __init__(self, override: OverrideMixin, **kwargs) -> None:
         super().__init__(**kwargs)
         self.referenced_override = override
+
+    @property
+    def claims(self) -> dict:
+        return self.referenced_override.claims
 
     def to_object(self) -> dict:
         obj = super().to_object()

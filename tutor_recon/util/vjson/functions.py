@@ -53,7 +53,7 @@ def dump(
                 location=location,
                 write_remote_mappings=write_remote_mappings,
                 expand_remote_mappings=expand_remote_mappings,
-                **kwargs
+                **kwargs,
             )
             if write_trailing_newline:
                 f.write("\n")
@@ -61,10 +61,15 @@ def dump(
     finally:
         if not success:
             if backup_path is not None:
-                emit_warning(f"An exception occurred while saving file '{dest}'. Restoring backup from '{backup_path}'.")
+                emit_warning(
+                    f"An exception occurred while saving file '{dest}'. Restoring backup from '{backup_path}'."
+                )
                 backup_path.rename(dest)
             else:
-                emit_critical(f"Failed to save file '{dest}'. No backup was created, so you will probably have to manually fix the file.", exit=True)
+                emit_critical(
+                    f"Failed to save file '{dest}'. No backup was created, so you will probably have to manually fix the file.",
+                    exit=True,
+                )
 
 
 def dumps(

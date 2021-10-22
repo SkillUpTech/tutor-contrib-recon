@@ -15,6 +15,7 @@ class TemplateOverride(OverrideMixin):
         self._src = src
         self._effective_src = None
         self.dest = dest
+        self.claims = {self.dest: self}
 
     @property
     def src(self) -> str:

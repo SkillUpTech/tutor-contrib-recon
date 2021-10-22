@@ -3,6 +3,7 @@
 import json
 from abc import abstractmethod
 from pathlib import Path
+from tutor_recon.util.misc import flatten_dict
 
 from tutor_recon.util.vjson.util import (
     recursive_update,
@@ -22,6 +23,15 @@ class OverrideConfig(OverrideMixin):
         super().__init__(**kwargs)
         self.overrides = overrides
         self.target = target
+
+    @property
+    def claims(self) -> dict:
+        return flatten_dict(
+            self.overrides,
+            prefix=self.target,
+            replace_values=True,
+            replacement_value=self,
+        )
 
     @abstractmethod
     def load_from_env(self, tutor_root: Path) -> dict:
@@ -62,15 +72,15 @@ class OverrideConfig(OverrideMixin):
         return scaffold
 
     def override(self, tutor_root: Path, recon_root: Path) -> None:
-        """Apply the override settings to the environment."""
-        self.update_env(tutor_root, self.overrides)
+        """Apply `self.overrides` to the environment."""
+        self.update_env(tutor_root)
 
 
 class TutorOverrideConfig(OverrideConfig):
     type_id = "tutor"
 
-    def __init__(self, overrides: vjson.VJSON_T, target: Path, **kwargs) -> None:
-        super().__init__(overrides, target, **kwargs)
+    def __init__(self, overrides: vjson.VJSON_T, **kwargs) -> None:
+        super().__init__(overrides, target="tutor", **kwargs)
 
     def load_from_env(self, tutor_root: Path) -> dict:
         return get_complete(tutor_root).copy()

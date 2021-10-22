@@ -117,7 +117,7 @@ def replace_template(context: cloup.Context, path: str):
     "--expand/--no-expand",
     is_flag=True,
     default=True,
-    help="Expand references to files ('$+').",
+    help="Expand references to files ('$+') into objects.",
 )
 @cloup.pass_context
 def list(context: cloup.Context, expand: bool):
@@ -160,7 +160,9 @@ def new_module(
         vjson.RemoteMapping(
             target=target,
             overrides=[],
-            info=RemoteMapping(target=Path("module-info.json"), version="0.0.0", name=name),
+            info=RemoteMapping(
+                target=Path("module-info.json"), version="0.0.0", name=name
+            ),
         )
     )
     reference = OverrideReference(module)
