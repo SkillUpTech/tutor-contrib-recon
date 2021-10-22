@@ -5,7 +5,7 @@ import click
 import cloup
 
 
-from tutor_recon.config.main import main_config
+from tutor_recon.override.main import main_config
 from tutor_recon.util.cli import emit
 from tutor_recon.util.module import (
     load_info,

@@ -5,13 +5,11 @@ from pathlib import Path
 import cloup
 
 
-from tutor_recon.config.main import main_config
-from tutor_recon.config.override_reference import OverrideReference
-from tutor_recon.config.override_module import OverrideModule
+from tutor_recon.override.main import main_config
+from tutor_recon.override.reference import OverrideReference
+from tutor_recon.override.module import OverrideModule
 from tutor_recon.util.cli import emit
-from tutor_recon.util.module import (
-    init_repo,
-)
+from tutor_recon.util.module import init_repo
 from tutor_recon.util.paths import root_dirs
 from tutor_recon.util.vjson.reference import RemoteMapping
 

@@ -4,7 +4,7 @@
 import cloup
 
 
-from tutor_recon.config.main import main_config
+from tutor_recon.override.main import main_config
 from tutor_recon.util import vjson
 from tutor_recon.util.paths import root_dirs
 

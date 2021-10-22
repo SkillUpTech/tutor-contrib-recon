@@ -1,10 +1,10 @@
 """The OverrideModule class definition."""
 
 from pathlib import Path
-from typing import MutableMapping, Optional
+from typing import MutableMapping
 
 from tutor_recon.util import vjson
-from .override_sequence import OverrideSequence
+from .sequence import OverrideSequence
 
 
 class OverrideModule(OverrideSequence):

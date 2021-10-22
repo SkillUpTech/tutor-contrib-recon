@@ -3,7 +3,7 @@
 import cloup
 
 from tutor_recon.util.tutor import run_tutor_config_save
-from tutor_recon.config.main import override_all
+from tutor_recon.override.main import override_all
 from tutor_recon.util.cli import emit
 from tutor_recon.util.paths import root_dirs
 

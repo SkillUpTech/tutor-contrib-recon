@@ -1,10 +1,10 @@
 """The OverrideSequence container class definition."""
 
 from pathlib import Path
-from typing import ChainMap, Optional
+from typing import Optional
 
 from tutor_recon.util import vjson
-from tutor_recon.config.override import (
+from tutor_recon.override.override import (
     OverrideMixin,
 )
 from tutor_recon.util.constants import DEFAULT_OVERRIDE_SEQUENCE

@@ -3,7 +3,7 @@ from pathlib import Path
 import click
 import cloup
 
-from tutor_recon.config.main import scaffold_all
+from tutor_recon.override.main import scaffold_all
 from tutor_recon.util.cli import emit
 from tutor_recon.util.paths import overrides_path
 from tutor_recon.util.tutor import run_tutor_config_save

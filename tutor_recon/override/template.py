@@ -2,9 +2,9 @@
 
 from pathlib import Path
 from tutor_recon.util import vjson
-from tutor_recon.config.tutor import render_template, template_source
+from tutor_recon.override.tutor import render_template, template_source
 
-from tutor_recon.config.override import OverrideMixin
+from tutor_recon.override.override import OverrideMixin
 
 
 class TemplateOverride(OverrideMixin):

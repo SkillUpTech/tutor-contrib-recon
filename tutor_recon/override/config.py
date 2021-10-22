@@ -12,8 +12,8 @@ from tutor_recon.util.vjson.util import (
 )
 from tutor_recon.util import vjson
 
-from tutor_recon.config.tutor import update_config, get_complete
-from tutor_recon.config.override import OverrideMixin
+from tutor_recon.override.tutor import update_config, get_complete
+from tutor_recon.override.override import OverrideMixin
 
 
 class OverrideConfig(OverrideMixin, metaclass=ABCMeta):

@@ -1,7 +1,7 @@
 """Override type which holds a reference to an OverrideSequence."""
 
 from pathlib import Path
-from tutor_recon.config.override import (
+from tutor_recon.override.override import (
     OverrideMixin,
 )
 
