@@ -9,9 +9,9 @@ from .constants import JSON_T, MARKER
 
 
 class RemoteReferenceMixin(ABC):
-    def __init__(self, *, target: Path, **kwargs) -> None:
+    def __init__(self, *, remote_reference: Path, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.target = target
+        self.remote_reference = remote_reference
 
     def reference_str(
         self, make_relative_to: Optional[Path] = None, safe: bool = False
@@ -28,7 +28,7 @@ class RemoteReferenceMixin(ABC):
             ValueError: if the target of this mapping is not a subpath of `make_relative_to` and
                 `safe=True` was not provided to the constructor.
         """
-        if self.target.is_absolute():
+        if self.remote_reference.is_absolute():
             if make_relative_to is not None:
                 try:
                     return self._target_relative(make_relative_to)
@@ -41,11 +41,11 @@ class RemoteReferenceMixin(ABC):
 
     def _target_relative(self, to: Path = None) -> str:
         if to is not None:
-            return f"{MARKER}+{self.target.relative_to(to)}"
-        return f"{MARKER}+{self.target}"
+            return f"{MARKER}+{self.remote_reference.relative_to(to)}"
+        return f"{MARKER}+{self.remote_reference}"
 
     def _target_absolute(self) -> str:
-        return f"{MARKER}+{self.target}"
+        return f"{MARKER}+{self.remote_reference}"
 
     @abstractmethod
     def expand(self) -> JSON_T:
@@ -59,7 +59,7 @@ class RemoteReferenceMixin(ABC):
         **kwargs,
     ) -> None:
         """Serialize the contents of this reference into its target file."""
-        target = self.target
+        target = self.remote_reference
         if not target.is_absolute():
             assert (
                 location

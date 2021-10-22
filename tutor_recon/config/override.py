@@ -1,15 +1,16 @@
 """Mixin for objects which can apply overrides to the Tutor environment."""
-from abc import ABC, abstractmethod, abstractproperty
+from abc import ABCMeta, abstractmethod
 from pathlib import Path
 
 from tutor_recon.util import vjson
 
 
-class OverrideMixin(vjson.VJSONSerializableMixin, ABC):
-    def __init__(self, **kwargs) -> None:
-        super().__init__(**kwargs)
+class OverrideMixin(vjson.VJSONSerializableMixin, metaclass=ABCMeta):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
-    @abstractproperty
+    @property
+    @abstractmethod
     def claims(self) -> dict:
         """Return a dictionary mapping unique resource (file or attribute) IDs to this or another Override.
 

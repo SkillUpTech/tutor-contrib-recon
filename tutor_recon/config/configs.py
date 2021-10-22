@@ -1,7 +1,7 @@
 """The OverrideConfig class and subclass definitions."""
 
 import json
-from abc import abstractmethod
+from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from tutor_recon.util.misc import flatten_dict
 
@@ -16,7 +16,7 @@ from tutor_recon.config.tutor import update_config, get_complete
 from tutor_recon.config.override import OverrideMixin
 
 
-class OverrideConfig(OverrideMixin):
+class OverrideConfig(OverrideMixin, metaclass=ABCMeta):
     """A settings-like override configuration object."""
 
     def __init__(self, overrides: vjson.VJSON_T, target: Path, **kwargs) -> None:
@@ -79,8 +79,8 @@ class OverrideConfig(OverrideMixin):
 class TutorOverrideConfig(OverrideConfig):
     type_id = "tutor"
 
-    def __init__(self, overrides: vjson.VJSON_T, **kwargs) -> None:
-        super().__init__(overrides, target="tutor", **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
     def load_from_env(self, tutor_root: Path) -> dict:
         return get_complete(tutor_root).copy()
@@ -92,8 +92,8 @@ class TutorOverrideConfig(OverrideConfig):
 class JSONOverrideConfig(OverrideConfig):
     type_id = "json"
 
-    def __init__(self, overrides: vjson.VJSON_T, target: Path, **kwargs) -> None:
-        super().__init__(overrides, target, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
 
     def load_from_env(self, tutor_root: Path) -> dict:
         with open(tutor_root / self.target, "r") as f:

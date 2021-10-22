@@ -1,6 +1,6 @@
 """Tools for creating custom (de)serializable types."""
 
-from abc import ABC, abstractmethod
+from abc import ABCMeta, abstractmethod
 from pathlib import Path
 from typing import Union, TYPE_CHECKING
 
@@ -13,7 +13,7 @@ if TYPE_CHECKING:
     from .functions import dump, load
 
 
-class VJSONSerializableMixin(ABC):
+class VJSONSerializableMixin(metaclass=ABCMeta):
     """Mixin for types which define `to_object` and `from_object` methods.
 
     When subclassing, the `type_id` class attribute may be provided as
@@ -52,7 +52,7 @@ class VJSONSerializableMixin(ABC):
         type of mapping to use (`RemoteMapping` or `dict`) can be determined dynamically.
         """
         if self._target is not None:
-            mapping = RemoteMapping(target=self._target)
+            mapping = RemoteMapping(remote_reference=self._target)
         else:
             mapping = dict()
         mapping.update({f"{MARKER}t": self.type_id})
@@ -63,7 +63,7 @@ class VJSONSerializableMixin(ABC):
         """Deserialize the given object and return the new instance of this type."""
         instance = cls(**obj)
         if isinstance(obj, RemoteMapping):
-            instance._target = obj.target
+            instance._target = obj.remote_reference
         return instance
 
     @classmethod

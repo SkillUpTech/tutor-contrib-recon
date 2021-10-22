@@ -114,12 +114,12 @@ class VJSONDecoder(JSONDecoder):
             path.parent.mkdir(exist_ok=True, parents=True)
             with open(path, "w") as f:
                 json.dump(dict(), fp=f)
-            return RemoteMapping(target=path)
+            return RemoteMapping(remote_reference=path)
         with open(path, "r") as f:
             data = json.load(f, cls=type(self), location=path.parent, **self.params())
         if isinstance(data, VJSONSerializableMixin):
             return data
-        return RemoteMapping(target=path, **data)
+        return RemoteMapping(remote_reference=path, **data)
 
     def expand_object_reference(
         self, value: str, key: KEY_T = NOTHING

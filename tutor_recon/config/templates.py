@@ -15,13 +15,16 @@ class TemplateOverride(OverrideMixin):
         self._src = src
         self._effective_src = None
         self.dest = dest
-        self.claims = {self.dest: self}
 
     @property
     def src(self) -> str:
         if self._effective_src is None:
             return self._src
         return self._effective_src
+
+    @property
+    def claims(self) -> dict:
+        return {self.dest: self}
 
     def override(self, tutor_root: Path, recon_root: Path) -> None:
         """Render the template to the tutor environment."""
