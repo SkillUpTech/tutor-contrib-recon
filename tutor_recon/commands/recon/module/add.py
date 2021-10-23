@@ -21,7 +21,7 @@ from tutor_recon.util.paths import root_dirs
 @cloup.command(help="Clone a remote override module.")
 @cloup.argument("url")
 @cloup.pass_context
-def add_module(context: cloup.Context, url: str):
+def add(context: cloup.Context, url: str):
     _, recon_root = root_dirs(context)
     modules_root = recon_root / "modules"
     repo_name = uuid4()
@@ -40,4 +40,4 @@ def add_module(context: cloup.Context, url: str):
     emit(f"Successfully applied {module_name} 👍")
 
 
-command = add_module
+command = add

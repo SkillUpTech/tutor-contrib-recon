@@ -35,7 +35,7 @@ from tutor_recon.util.vjson.reference import RemoteMapping
 )
 @cloup.argument("name", metavar="MODULE_NAME")
 @cloup.pass_context
-def new_module(
+def new(
     context: cloup.Context, name: str, git_url: str, initialize_repo: bool, push: bool
 ):
     tutor_root, recon_root = root_dirs(context)
@@ -61,4 +61,4 @@ def new_module(
     emit(f"Created new override module at {target} 👍")
 
 
-command = new_module
+command = new

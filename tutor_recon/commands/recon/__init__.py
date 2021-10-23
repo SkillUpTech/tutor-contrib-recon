@@ -6,14 +6,12 @@ from importlib import import_module
 from tutor_recon.util.constants import CONTEXT_SETTINGS, PROGRAM_DESCRIPTION
 
 SUBCOMMANDS = (
-    ".add_module",
+    ".module",
     ".init",
     ".list_",
-    ".new_module",
     ".printroot",
     ".replace_template",
     ".save",
-    ".update_module",
 )
 
 

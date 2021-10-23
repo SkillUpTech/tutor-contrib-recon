@@ -17,7 +17,7 @@ from tutor_recon.util.paths import root_dirs
 @cloup.command(help="Update an installed override module.")
 @cloup.argument("name")
 @cloup.pass_context
-def update_module(context: cloup.Context, name: str):
+def update(context: cloup.Context, name: str):
     _, recon_root = root_dirs(context)
     module_path = recon_root / "modules" / name
     prev_info = load_info(module_path=module_path)
@@ -30,4 +30,4 @@ def update_module(context: cloup.Context, name: str):
     )
 
 
-command = update_module
+command = update
