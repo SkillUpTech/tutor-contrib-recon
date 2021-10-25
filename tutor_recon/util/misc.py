@@ -12,27 +12,30 @@ def brief(string: str, max_len=20) -> str:
 
 
 def walk_dict(
-    mapping: Mapping, key_prefix: "Optional[Sequence[str]]" = None
-) -> "Iterator[tuple[Sequence[str], Any]]":
+    mapping: Mapping, key_prefix: "Optional[list[Hashable]]" = None
+) -> "Iterator[tuple[tuple[Hashable, ...], Any]]":
     """Recursively walk through the given dict and yield all terminal values.
 
     Descends into values which are dictionaries/mappings, but not lists.
 
+    Arguments:
+        mapping: The `Mapping` to flatten.
+        key_prefix: A list of keys to front-append to each `key_sequence` generated.
+
     Yields:
-        (key_sequence, value) where `key_sequence` is the sequence of nested keys in `mapping`
+        `(key_sequence, value)` where `key_sequence` is the sequence of nested keys in `mapping`
         under which `value` resides.
     """
+    key_prefix = [] if key_prefix is None else key_prefix
     for k, v in mapping.items():
-        key_seq = [k]
-        if key_prefix:
-            key_seq = key_prefix + key_seq
+        key_seq = key_prefix + [k]
         if isinstance(v, Mapping):
             yield from walk_dict(v, key_prefix=key_seq)
         else:
             yield key_seq, v
 
 
-def set_nested(mapping: Mapping, key_sequence: "Sequence[str]", value: Any) -> None:
+def set_nested(mapping: Mapping, key_sequence: Sequence[str], value: Any) -> None:
     """Set the value in `mapping` under the given sequence of nested keys.
 
     Sub-mappings are created as instances of `dict` if they do not yet exist.
@@ -50,8 +53,7 @@ def set_nested(mapping: Mapping, key_sequence: "Sequence[str]", value: Any) -> N
 def recursive_update(mapping: Mapping, other: Mapping) -> None:
     """Recursively update `mapping` using the terminal values from `other`.
 
-    Creates sub-mappings if they don't yet exist, but does not destroy existing
-    sub-mappings.
+    Creates sub-mappings if they don't yet exist.
     """
     for key_list, value in walk_dict(other):
         set_nested(mapping, key_list, value)
@@ -59,7 +61,7 @@ def recursive_update(mapping: Mapping, other: Mapping) -> None:
 
 def flatten_dict(
     mapping: Mapping,
-    prefix: Hashable = None,
+    prefix: Sequence[Hashable] = tuple(),
     replace_values: bool = False,
     replacement_value: Any = None,
 ) -> dict:
@@ -69,13 +71,12 @@ def flatten_dict(
         mapping: The source dictionary.
 
     Keyword Arguments:
-        prefix: An object to insert as the first element of each key.
-        replace_values: If set, substitutes the terminal values with `replacement_value`.
+        prefix: A sequence to prepend to each key tuple.
+        replace_values: If set, substitutes all terminal values with `replacement_value`.
+        replacement_value: See above. Ignored if `not replace_values`.
     """
     flattened = dict()
-    for keys, terminal in walk_dict(mapping):
-        if prefix:
-            keys.insert(0, prefix)
+    for keys, terminal in walk_dict(mapping, key_prefix=prefix):
         if replace_values:
             terminal = replacement_value
         flattened[tuple(keys)] = terminal

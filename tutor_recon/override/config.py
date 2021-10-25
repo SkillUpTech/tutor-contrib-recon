@@ -28,7 +28,7 @@ class OverrideConfig(OverrideMixin, metaclass=ABCMeta):
     def claims(self) -> dict:
         return flatten_dict(
             self.overrides,
-            prefix=self.target,
+            prefix=[self.target],
             replace_values=True,
             replacement_value=self,
         )
@@ -73,7 +73,7 @@ class OverrideConfig(OverrideMixin, metaclass=ABCMeta):
 
     def override(self, tutor_root: Path, recon_root: Path) -> None:
         """Apply `self.overrides` to the environment."""
-        self.update_env(tutor_root)
+        self.update_env(tutor_root, self.overrides)
 
 
 class TutorOverrideConfig(OverrideConfig):

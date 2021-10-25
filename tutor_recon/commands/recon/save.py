@@ -9,17 +9,9 @@ from tutor_recon.util.paths import root_dirs
 
 
 @cloup.command(help="Apply all override settings to the rendered environment.")
-@cloup.option(
-    "--tutor/--no-tutor",
-    is_flag=True,
-    default=True,
-    help="Run/don't run 'tutor config save' prior to applying overrides.",
-)
 @cloup.pass_context
-def save(context: cloup.Context, tutor):
+def save(context: cloup.Context):
     tutor_root, recon_root = root_dirs(context)
-    if tutor:
-        run_tutor_config_save(context)
     emit("Applying overrides.")
     override_all(tutor_root, recon_root)
     emit("Done.")

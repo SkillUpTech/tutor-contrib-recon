@@ -12,7 +12,7 @@ from tutor_recon.util.tutor import run_tutor_config_save
 @cloup.command(help="Initialize recon.")
 @cloup.option(
     "--env-dir",
-    help="The path to where your environment override files should (or already do) reside.",
+    help="The path to your environment override files. Defaults to '$(tutor config printroot)/env_overrides'.",
     type=cloup.Path(file_okay=False, path_type=Path),
     default=None,
 )
