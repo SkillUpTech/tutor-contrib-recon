@@ -1,7 +1,7 @@
 """Miscellaneous utility functions."""
 
 from typing import Any, Hashable, Iterator, MutableMapping, Optional
-from collections.abc import Mapping, Sequence
+from typing import Mapping, Sequence
 
 
 def brief(string: str, max_len=20) -> str:

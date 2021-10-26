@@ -38,7 +38,7 @@ from tutor_recon.util.vjson.reference import RemoteMapping
 def new(
     context: cloup.Context, name: str, git_url: str, initialize_repo: bool, push: bool
 ):
-    tutor_root, recon_root = root_dirs(context)
+    _, recon_root = root_dirs(context)
     modules_root = recon_root / Path("modules")
     module_root = Path("modules") / name
     target = module_root / "module.v.json"
@@ -54,11 +54,12 @@ def new(
     )
     reference = OverrideReference(module)
     main.add_override(reference)
-    reference.scaffold(tutor_root, recon_root)
     main.save(recon_root / "main.v.json")
     if initialize_repo:
         init_repo(parent_dir=modules_root, name=name, url=git_url, push=push)
-    emit(f"Created new override module at {target} 👍")
+    emit(
+        f"Created new override module at '{target}'. See the git output above for more details."
+    )
 
 
 command = new

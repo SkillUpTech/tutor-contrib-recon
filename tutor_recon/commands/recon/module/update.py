@@ -20,13 +20,14 @@ from tutor_recon.util.paths import root_dirs
 def update(context: cloup.Context, name: str):
     _, recon_root = root_dirs(context)
     module_path = recon_root / "modules" / name
-    prev_info = load_info(module_path=module_path)
+    prev_info = load_info(module_dir=module_path)
     pull_repo(loc=module_path)
-    new_info = load_info(module_path=module_path)
+    new_info = load_info(module_dir=module_path)
     main = main_config(recon_root)
     main.save(recon_root / "main.v.json")
+    prev_version, new_version = prev_info["version"], new_info["version"]
     emit(
-        f"Updated {click.style(name, 'magenta')} from {prev_info['version']} to {new_info['version']}."
+        f"Updated {click.style(name, 'magenta')} from {prev_version} to {new_version}."
     )
 
 
