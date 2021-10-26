@@ -1,6 +1,7 @@
 """Mixin for objects which can apply overrides to the Tutor environment."""
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
+from typing import Any, Hashable
 
 from tutor_recon.util import vjson
 
@@ -11,8 +12,8 @@ class OverrideMixin(vjson.VJSONSerializableMixin, metaclass=ABCMeta):
 
     @property
     @abstractmethod
-    def claims(self) -> dict:
-        """Return a dictionary mapping unique resource (file or attribute) IDs to this or another Override.
+    def claims(self) -> "dict[tuple, OverrideMixin]":
+        """Return a dictionary mapping unique resource (file or attribute) ID tuples to this or another Override.
 
         This override will supplant any previously loaded overrides for each claim ID.
         For example: two `TemplateOverride`s claim the same file. The one which loads last will take precedence.

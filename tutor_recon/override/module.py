@@ -36,5 +36,5 @@ class OverrideModule(OverrideSequence):
     @classmethod
     def by_name(cls, name: str, modules_root: Path) -> "OverrideModule":
         """Return the latest installed version of the module with the given name."""
-        module_path = sorted(modules_root.glob(f'{name}_v*'))[-1]
+        module_path = sorted(modules_root.glob(name + "*"))[-1]
         return vjson.load(module_path / "module.v.json", location=modules_root)

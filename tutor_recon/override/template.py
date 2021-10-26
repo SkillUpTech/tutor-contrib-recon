@@ -24,7 +24,7 @@ class TemplateOverride(OverrideMixin):
 
     @property
     def claims(self) -> dict:
-        return {self.dest: self}
+        return {(self.dest,): self}
 
     def override(self, tutor_root: Path, recon_root: Path) -> None:
         """Render the template to the tutor environment."""
