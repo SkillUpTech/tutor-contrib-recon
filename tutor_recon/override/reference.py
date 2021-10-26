@@ -27,3 +27,6 @@ class OverrideReference(OverrideMixin):
 
     def override(self, tutor_root: Path, recon_root: Path) -> None:
         self.referenced_override.override(tutor_root, recon_root)
+
+    def match(self, **pairs) -> bool:
+        return self.referenced_override.match(**pairs)

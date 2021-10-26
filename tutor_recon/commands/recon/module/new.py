@@ -30,7 +30,7 @@ from tutor_recon.util.vjson.reference import RemoteMapping
 @cloup.option(
     "--push/--no-push",
     is_flag=True,
-    default=True,
+    default=False,
     help="Push the initialized repository to origin if applicable.",
 )
 @cloup.argument("name", metavar="MODULE_NAME")
@@ -58,7 +58,7 @@ def new(
     if initialize_repo:
         init_repo(parent_dir=modules_root, name=name, url=git_url, push=push)
     emit(
-        f"Created new override module at '{target}'. See the git output above for more details."
+        f"Created new override module at '{target.resolve()}'. See the git output above for more details."
     )
 
 

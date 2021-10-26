@@ -1,7 +1,6 @@
 """Mixin for objects which can apply overrides to the Tutor environment."""
 from abc import ABCMeta, abstractmethod
 from pathlib import Path
-from typing import Any, Hashable
 
 from tutor_recon.util import vjson
 
@@ -47,3 +46,8 @@ class OverrideMixin(vjson.VJSONSerializableMixin, metaclass=ABCMeta):
             recon_root: The local `env_overrides` directory.
         """
         return None
+
+    def match(self, **pairs) -> bool:
+        """Return true if this object contains all of the given attribute pairs."""
+        obj = self.to_object()
+        return all(key in obj and obj[key] == value for key, value in pairs.items())

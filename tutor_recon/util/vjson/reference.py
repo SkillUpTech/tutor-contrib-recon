@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import json
 from json import JSONEncoder
 from pathlib import Path
 from typing import MutableMapping, Optional
@@ -55,10 +54,11 @@ class RemoteReferenceMixin(ABC):
         self,
         serializer: "type[JSONEncoder]" = JSONEncoder,
         location: Optional[Path] = None,
-        write_trailing_newline: bool = True,
         **kwargs,
     ) -> None:
         """Serialize the contents of this reference into its target file."""
+        # We use .functions.dump here for consistency w/ api changes, but must avoid a circular import.
+        from .functions import dump
         target = self.remote_reference
         if not target.is_absolute():
             assert (
@@ -66,11 +66,7 @@ class RemoteReferenceMixin(ABC):
             ), f"Cannot write to relative path '{target}' without a location specified."
             target = location / target
         target.parent.mkdir(exist_ok=True, parents=True)
-        with open(target, "w") as f:
-            json.dump(self.expand(), f, cls=serializer, location=location, **kwargs)
-            if write_trailing_newline:
-                f.write("\n")
-
+        dump(self.expand(), dest=target, cls=serializer, location=target.parent, **kwargs)
 
 class RemoteMapping(RemoteReferenceMixin, WrappedDict):
     """A dict-like reference to a JSON mapping (object) stored in another file."""

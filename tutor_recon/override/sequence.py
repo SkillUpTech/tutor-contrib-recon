@@ -48,3 +48,17 @@ class OverrideSequence(OverrideMixin):
         """Call `override()` element-wise on the sequence."""
         for config in self.overrides:
             config.override(tutor_root, recon_root)
+
+    def remove_where(self, **pairs) -> "list[OverrideMixin]":
+        """Remove any child override which matches the given attribute pairs.
+        
+        Returns a list containing any overrides which were removed.
+        """
+        removed = []
+        for index, child in enumerate(self.overrides):
+            if child.match(**pairs):
+                removed.append(child)
+                del self.overrides[index]
+            elif isinstance(child, OverrideSequence):
+                removed += child.remove_where(**pairs)
+        return removed

@@ -9,6 +9,7 @@ SUBCOMMANDS = (
     ".add",
     ".new",
     ".update",
+    ".remove",
 )
 
 
