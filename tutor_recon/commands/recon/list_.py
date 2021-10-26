@@ -22,13 +22,13 @@ from tutor_recon.util.paths import root_dirs
         help="Don't expand references to files ('$+') into objects.",
     ),
     cloup.option(
-        "--no-duplicates", is_flag=True, help="Remove entries which will ultimately be overwritten by later overrides, but preserve the structure of the output."
+        "--no-duplicates", is_flag=True, help="[Not yet implemented] Remove entries which will ultimately be overwritten by later overrides, but preserve the structure of the output."
     ),
     cloup.option(
-        "--compact", is_flag=True, help="Generate and display a single, combined top-level override for each file or template."
+        "--compact", is_flag=True, help="[Not yet implemented] Generate and display a single, combined top-level override for each file or template."
     ),
     cloup.option(
-        "--claims", is_flag=True, help="Output an itemized list of all overriden options and files along with their final values."
+        "--claims", is_flag=True, help="[Not yet implemented] Output an itemized list of all overriden options and files along with their final values."
     ),
     constraint=mutually_exclusive
 )
