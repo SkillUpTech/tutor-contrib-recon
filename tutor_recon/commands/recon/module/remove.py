@@ -17,7 +17,7 @@ def remove(context: cloup.Context, name: str):
     modules_root = recon_root / "modules"
     module = OverrideModule.by_name(name, modules_root)
     main = main_config(recon_root)
-    print(main.remove_where(**expand_references(module.to_object())))
+    main.remove_where(**expand_references(module.to_object()))
     main.save(recon_root / "main.v.json")
     emit(f"Removed module '{name}' from the current configuration. To remove completely, delete the corresponding directory in {modules_root}.")
 
