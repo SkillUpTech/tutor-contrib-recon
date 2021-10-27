@@ -66,7 +66,7 @@ class TemplateOverride(OverrideMixin):
         )
         return instance
 
-    def load_module_hook(
+    def apply_module_hook(
         self, module_root: Path, module_id: str, tutor_root: Path, recon_root: Path
     ) -> None:
         src_prefix = module_root.relative_to(recon_root)

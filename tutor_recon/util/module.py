@@ -7,6 +7,7 @@ import re
 from contextlib import contextmanager
 from pathlib import Path
 from subprocess import run
+from shutil import move
 from typing import Optional
 from uuid import uuid4
 
@@ -114,6 +115,9 @@ def add_module(modules_root: Path, git_url: str) -> OverrideModule:
     name, version = info["name"], info["version"]
     full_name = f"{name}_{version}"
     abort_if_exists(modules_root, full_name)
-    module_dir = module_dir.rename(full_name)
+    module_dir = module_dir.rename(module_dir.parent / full_name)
     emit(f"Renamed '{repo_name}' -> '{full_name}'")
-    return vjson.load(module_dir / "module.v.json", location=module_dir)
+    module_path = module_dir / "module.v.json"
+    module = vjson.load(module_dir / "module.v.json", location=module_dir)
+    module._target = module_path  # TODO Add a public setter or similar.
+    return module
