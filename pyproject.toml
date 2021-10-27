@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tutor_recon"
-version = "0.15.2"
+version = "0.15.3"
 description = "recon plugin for Tutor"
 authors = ["Skill-Up Technologies"]
 classifiers = [
