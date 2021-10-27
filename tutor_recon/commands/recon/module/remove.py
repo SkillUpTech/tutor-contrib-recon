@@ -19,7 +19,9 @@ def remove(context: cloup.Context, name: str):
     main = main_config(recon_root)
     main.remove_where(**expand_references(module.to_object()))
     main.save(recon_root / "main.v.json")
-    emit(f"Removed module '{name}' from the current configuration. To remove completely, delete the corresponding directory in {modules_root}.")
+    emit(
+        f"Removed module '{name}' from the current configuration. To remove completely, delete the corresponding directory in {modules_root}."
+    )
 
 
 command = remove

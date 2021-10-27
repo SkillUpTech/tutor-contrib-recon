@@ -51,7 +51,7 @@ class OverrideSequence(OverrideMixin):
 
     def remove_where(self, **pairs) -> "list[OverrideMixin]":
         """Remove any child override which matches the given attribute pairs.
-        
+
         Returns a list containing any overrides which were removed.
         """
         removed = []

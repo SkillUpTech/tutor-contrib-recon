@@ -104,7 +104,7 @@ def add_module(modules_root: Path, git_url: str) -> OverrideModule:
     Renames the module according to its `module-info.json` if possible. If the file
     is missing, it is created and default values are added.
     """
-    repo_name = uuid4()
+    repo_name = str(uuid4())
     module_dir = modules_root / repo_name
     clone_repo(git_url, to=modules_root, name=repo_name)
     emit(f"Cloned module to {click.style(module_dir, fg='yellow')}.")
