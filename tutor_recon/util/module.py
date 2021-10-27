@@ -86,12 +86,13 @@ def load_info(
         defaults: Default info to use if the file doesn't exist or is missing attributes.
     """
     info = dict() if defaults is None else defaults
+    info_path = module_dir / "module-info.json"
     try:
-        with open(module_dir, "r") as f:
+        with open(info_path, "r") as f:
             info.update(json.load(fp=f))
     except FileNotFoundError:
         if nofail:
-            with open(module_dir, "w") as new_file:
+            with open(info_path, "w") as new_file:
                 json.dump(info, fp=new_file)
         else:
             raise
