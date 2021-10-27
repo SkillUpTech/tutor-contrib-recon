@@ -112,8 +112,7 @@ def add_module(modules_root: Path, git_url: str) -> OverrideModule:
     emit(f"Cloned module to {click.style(module_dir, fg='yellow')}.")
     endpoint_name = re.findall(r"([^/]).git", git_url)[0]
     info = load_info(module_dir, defaults=dict(name=endpoint_name, version="unknown"))
-    name, version = info["name"], info["version"]
-    full_name = f"{name}_{version}"
+    full_name = info["name"]
     abort_if_exists(modules_root, full_name)
     module_dir = module_dir.rename(module_dir.parent / full_name)
     emit(f"Renamed '{repo_name}' -> '{full_name}'")
