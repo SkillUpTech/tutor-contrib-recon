@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "tutor_recon"
-version = "0.12.0"
+version = "0.14.0"
 description = "recon plugin for Tutor"
 authors = ["Skill-Up Technologies"]
 classifiers = [
@@ -19,6 +19,8 @@ cloup = "^0.11.0"
 
 [tool.poetry.dev-dependencies]
 black = "^21.7b0"
+autoflake = "^1.4"
+bpython = "^0.21"
 
 [tool.poetry.plugins."tutor.plugin.v0"]
 recon = "tutor_recon.plugin"

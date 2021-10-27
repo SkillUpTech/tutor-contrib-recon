@@ -16,7 +16,6 @@ Use {HELP_EXAMPLE} for help with a particular subcommand.
 """
 
 CONTEXT_SETTINGS = cloup.Context.settings(
-    show_default=True,
     formatter_settings=cloup.HelpFormatter.settings(
         max_width=160,
         theme=cloup.HelpTheme(

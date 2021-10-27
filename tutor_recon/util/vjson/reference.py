@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-import json
 from json import JSONEncoder
 from pathlib import Path
 from typing import MutableMapping, Optional
@@ -9,9 +8,9 @@ from .constants import JSON_T, MARKER
 
 
 class RemoteReferenceMixin(ABC):
-    def __init__(self, *, target: Path, **kwargs) -> None:
+    def __init__(self, *, remote_reference: Path, **kwargs) -> None:
         super().__init__(**kwargs)
-        self.target = target
+        self.remote_reference = remote_reference
 
     def reference_str(
         self, make_relative_to: Optional[Path] = None, safe: bool = False
@@ -28,7 +27,7 @@ class RemoteReferenceMixin(ABC):
             ValueError: if the target of this mapping is not a subpath of `make_relative_to` and
                 `safe=True` was not provided to the constructor.
         """
-        if self.target.is_absolute():
+        if self.remote_reference.is_absolute():
             if make_relative_to is not None:
                 try:
                     return self._target_relative(make_relative_to)
@@ -41,11 +40,11 @@ class RemoteReferenceMixin(ABC):
 
     def _target_relative(self, to: Path = None) -> str:
         if to is not None:
-            return f"{MARKER}+{self.target.relative_to(to)}"
-        return f"{MARKER}+{self.target}"
+            return f"{MARKER}+{self.remote_reference.relative_to(to)}"
+        return f"{MARKER}+{self.remote_reference}"
 
     def _target_absolute(self) -> str:
-        return f"{MARKER}+{self.target}"
+        return f"{MARKER}+{self.remote_reference}"
 
     @abstractmethod
     def expand(self) -> JSON_T:
@@ -55,22 +54,19 @@ class RemoteReferenceMixin(ABC):
         self,
         serializer: "type[JSONEncoder]" = JSONEncoder,
         location: Optional[Path] = None,
-        write_trailing_newline: bool = True,
         **kwargs,
     ) -> None:
         """Serialize the contents of this reference into its target file."""
-        target = self.target
+        # We use .functions.dump here for consistency w/ api changes, but must avoid a circular import.
+        from .functions import dump
+        target = self.remote_reference
         if not target.is_absolute():
             assert (
                 location
             ), f"Cannot write to relative path '{target}' without a location specified."
             target = location / target
         target.parent.mkdir(exist_ok=True, parents=True)
-        with open(target, "w") as f:
-            json.dump(self.expand(), f, cls=serializer, location=location, **kwargs)
-            if write_trailing_newline:
-                f.write("\n")
-
+        dump(self.expand(), dest=target, cls=serializer, location=target.parent, **kwargs)
 
 class RemoteMapping(RemoteReferenceMixin, WrappedDict):
     """A dict-like reference to a JSON mapping (object) stored in another file."""

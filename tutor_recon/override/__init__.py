@@ -1,7 +1,10 @@
 from . import (
-    configs,
-    override_sequence,
-    override_reference,
-    templates,
+    config,
+    main,
+    module,
+    override,
+    reference,
+    sequence,
+    template,
     tutor,
 )  # Explicitly import so that any config can be deserialized by default.

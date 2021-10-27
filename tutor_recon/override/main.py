@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from tutor_recon.config.override_sequence import OverrideSequence
+from tutor_recon.override.sequence import OverrideSequence
 
 
 def main_config(recon_root: Path) -> OverrideSequence:
