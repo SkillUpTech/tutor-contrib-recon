@@ -118,6 +118,7 @@ def add_module(modules_root: Path, git_url: str) -> OverrideReference:
     emit(f"Renamed '{repo_name}' -> '{full_name}'")
     return get_reference(modules_root, full_name)
 
+
 def get_reference(modules_root: Path, name: str) -> OverrideReference:
     """Get a reference to the OverrideModule corresponding to the given name."""
     module_dir = modules_root / name

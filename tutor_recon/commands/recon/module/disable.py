@@ -19,9 +19,7 @@ def disable(context: cloup.Context, name: str):
     main = main_config(recon_root)
     main.remove_where(**expand_references(module.to_object()))
     main.save(recon_root / "main.v.json")
-    emit(
-        f"Disabled module '{name}'."
-    )
+    emit(f"Disabled module '{name}'.")
 
 
 command = disable
