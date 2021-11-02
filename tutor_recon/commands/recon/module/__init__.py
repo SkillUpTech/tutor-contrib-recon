@@ -3,13 +3,13 @@
 import cloup
 from importlib import import_module
 
-from tutor_recon.util.constants import CONTEXT_SETTINGS, PROGRAM_DESCRIPTION
-
 SUBCOMMANDS = (
     ".add",
+    ".remove",
     ".new",
     ".update",
-    ".remove",
+    ".disable",
+    ".restore",
 )
 
 

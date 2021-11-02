@@ -1,6 +1,9 @@
 """Utilities for working with command-line output."""
 
-from typing import Any, IO, Optional
+import sys
+
+from typing import IO, Optional
+
 import click
 
 PLUGIN_STYLED = click.style("recon", fg="magenta")
@@ -34,4 +37,4 @@ def emit_critical(
     """Show a serious error message and optionally exit."""
     emit(message=f"ERROR: {message}", nl=nl, color="red", err=True)
     if exit:
-        raise SystemExit(code=exit_code)
+        sys.exit(exit_code)

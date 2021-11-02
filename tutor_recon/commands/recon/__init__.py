@@ -4,6 +4,7 @@ import cloup
 from importlib import import_module
 
 from tutor_recon.util.constants import CONTEXT_SETTINGS, PROGRAM_DESCRIPTION
+from tutor_recon.__about__ import __version__
 
 SUBCOMMANDS = (
     ".module",

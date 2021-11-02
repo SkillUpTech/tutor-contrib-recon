@@ -7,14 +7,14 @@ import re
 from contextlib import contextmanager
 from pathlib import Path
 from subprocess import run
-from shutil import move
+from shutil import rmtree
 from typing import Optional
 from uuid import uuid4
 
 import click
 
 from tutor_recon.override.module import OverrideModule
-from tutor_recon.util import vjson
+from tutor_recon.override.reference import OverrideReference
 
 from .cli import emit, emit_critical
 
@@ -100,7 +100,7 @@ def load_info(
     return info
 
 
-def add_module(modules_root: Path, git_url: str) -> OverrideModule:
+def add_module(modules_root: Path, git_url: str) -> OverrideReference:
     """Add a module under `modules_root` from the given `git_url`.
 
     Renames the module according to its `module-info.json` if possible. If the file
@@ -114,9 +114,19 @@ def add_module(modules_root: Path, git_url: str) -> OverrideModule:
     info = load_info(module_dir, defaults=dict(name=endpoint_name, version="unknown"))
     full_name = info["name"]
     abort_if_exists(modules_root, full_name)
-    module_dir = module_dir.rename(module_dir.parent / full_name)
+    module_dir.rename(module_dir.parent / full_name)
     emit(f"Renamed '{repo_name}' -> '{full_name}'")
+    return get_reference(modules_root, full_name)
+
+def get_reference(modules_root: Path, name: str) -> OverrideReference:
+    """Get a reference to the OverrideModule corresponding to the given name."""
+    module_dir = modules_root / name
     module_path = module_dir / "module.v.json"
-    module = vjson.load(module_dir / "module.v.json", location=module_dir)
-    module._target = module_path  # TODO Add a public setter or similar.
-    return module
+    module = OverrideModule.load(from_=module_path)
+    module._target = module_path
+    return OverrideReference(override=module)
+
+
+def remove_module(modules_root: Path, name: str) -> None:
+    """Delete the repository corresponding the module of the given name."""
+    rmtree(modules_root / name, ignore_errors=True)
